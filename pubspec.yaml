@@ -40,11 +40,11 @@ dependencies:
   provider: ^6.1.2
   flutter_tba_info: ^0.0.9
   intl: ^0.20.2
+  timezone: ^0.10.1
   connectivity_plus: ^4.0.1
   flutter_staggered_grid_view: ^0.7.0
   audioplayers: ^6.5.0
   spine_flutter: 4.3.6
-  applovin_max: ^4.6.0
   firebase_remote_config: ^6.1.0
   firebase_core: ^4.2.0
   firebase_crashlytics: ^5.0.4  # 最新版本号参考 pub.dev :contentReference[oaicite:4]{index=4}
@@ -61,11 +61,16 @@ dependencies:
   app_settings: ^5.0.0
   logger: ^2.6.2
   cupertino_icons: ^1.0.8
+  cloudx_flutter: ^3.11.0
 
   thinkup_sdk:
-    path: lib/PCThrid/thinkup_sdk-1.0.15
+    path: PCThrid/thinkup_sdk-1.0.15
   flutter_local_notifications:
-    path: lib/PCThrid/common_notifications-master
+    path: PCThrid/common_notifications-master
+  pennyplicotollespinFK:
+    path: PCThrid/pennyplicotollespinFK
+  penyplicotcollectspinsh5:
+    path: PCThrid/penyplicotcollectspinsH5
 
 dev_dependencies:
   flutter_test:

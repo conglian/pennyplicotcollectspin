@@ -1,856 +1,995 @@
-// import 'package:flutter/cupertino.dart';
-// import 'package:flutter_lifecycle_detector/flutter_lifecycle_detector.dart';
-// import 'package:flutter_tba_info/flutter_tba_info.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-//
-// class PCNoticeHelp {
-//   static final PCNoticeHelp _instance = PCNoticeHelp._internal();
-//
-//   factory PCNoticeHelp() {
-//     return _instance;
-//   }
-//
-//   FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-//       FlutterLocalNotificationsPlugin();
-//
-//   // Notification permission and delivery are disabled for Samsung devices in Korea.
-//   Future<bool>? _notificationBlockFuture;
-//
-//   PCNoticeHelp._internal();
-//
-//   static const _notificationPermissionHandledDateKey =
-//       'as_notification_permission_handled_date';
-//   static const _notificationFollowUpPendingKey =
-//       'as_notification_follow_up_pending';
-//   static const _notificationFollowUpShownDateKey =
-//       'as_notification_follow_up_shown_date';
-//
-//   String _todayKey() {
-//     final now = DateTime.now();
-//     return '${now.year.toString().padLeft(4, '0')}-'
-//         '${now.month.toString().padLeft(2, '0')}-'
-//         '${now.day.toString().padLeft(2, '0')}';
-//   }
-//
-//   Future<bool> _notificationPermissionHandledToday() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     return prefs.getString(_notificationPermissionHandledDateKey) ==
-//         _todayKey();
-//   }
-//
-//   Future<bool> _shouldDisableNotifications() {
-//     return _notificationBlockFuture ??= _readNotificationBlockStatus();
-//   }
-//
-//   Future<bool> _readNotificationBlockStatus() async {
-//     try {
-//       final manufacturer = (await FlutterTbaInfo.instance.getManufacturer())
-//           .toLowerCase();
-//       final country = (await FlutterTbaInfo.instance.getOsCountry())
-//           .toLowerCase();
-//       final isSamsung = manufacturer.contains('samsung');
-//       final isKorea =
-//           country == 'kr' ||
-//           country == 'ko' ||
-//           country.contains('korea') ||
-//           country.contains('대한민국');
-//       return isSamsung && isKorea;
-//     } catch (error) {
-//       // Device metadata is optional; keep notifications enabled if it cannot be read.
-//       asLog.info('notification device check failed: $error');
-//       return false;
-//     }
-//   }
-//
-//   String _notificationType(String? payload) {
-//     final source = (payload ?? '').toLowerCase();
-//     if (source.startsWith('media')) return 'media';
-//     if (source == 'foreground' || source == 'screenon') {
-//       return 'fixed';
-//     }
-//     return source;
-//   }
-//
-//   Future<void> initNotice(BuildContext context) async {
-//     if (await _shouldDisableNotifications()) {
-//       asLog.info('notifications disabled for Samsung device in Korea');
-//       try {
-//         await flutterLocalNotificationsPlugin.cancelAll();
-//       } catch (error) {
-//         asLog.info('failed to clear disabled notifications: $error');
-//       }
-//       return;
-//     }
-//     const AndroidInitializationSettings initializationSettingsAndroid =
-//         AndroidInitializationSettings('as_sm_log'); // Android drawable名称，不加扩展名
-//
-//     const InitializationSettings initializationSettings =
-//         InitializationSettings(android: initializationSettingsAndroid);
-//
-//     await flutterLocalNotificationsPlugin.initialize(
-//       initializationSettings,
-//       onDidReceiveNotificationResponse: (response) {
-//         asLog.info('nf click response:${response}');
-//         final String? payload = response.payload;
-//         as_event_fire(ASTrackEvent.allNotificationClick, {
-//           'types': _notificationType(payload),
-//         });
-//         if (payload == null) return;
-//       },
-//     );
-//
-//     NotificationAppLaunchDetails? notificationAppLaunchDetails =
-//         await AndroidFlutterLocalNotificationsPlugin()
-//             .getNotificationAppLaunchDetails();
-//     asLog.info(
-//       '=initNotification====getNotificationAppLaunchDetails==notificationAppLaunchDetails:$notificationAppLaunchDetails=',
-//     );
-//     var didNotificationLaunchApp = false;
-//     if (notificationAppLaunchDetails != null) {
-//       NotificationResponse? notificationResponse =
-//           notificationAppLaunchDetails.notificationResponse;
-//       didNotificationLaunchApp =
-//           notificationAppLaunchDetails.didNotificationLaunchApp;
-//       if (didNotificationLaunchApp) {
-//         as_event_fire(ASTrackEvent.allNotificationClick, {
-//           'types': _notificationType(notificationResponse?.payload),
-//         });
-//       }
-//     }
-//     as_event_fire(ASTrackEvent.launchFrom, {
-//       'types': didNotificationLaunchApp ? 'noti' : 'app',
-//     });
-//
-//     // The platform permission is requested once from the launch screen.
-//     // Home only schedules notifications and displays the in-app follow-up.
-//     _initLifecycleListener();
-//     _repeatNotification1();
-//     _repeatNotification2();
-//     _repeatNotification3();
-//     _repeatNotification4();
-//     _subscribeFcmTopic();
-//     _subscribeFcmTopic2();
-//     _showUnlockNotification();
-//     _showScreenOnNotification();
-//     showSJNotificationMediaStyle1();
-//     showSJNotificationMediaStyle2();
-//     showSJNotificationMediaStyle3();
-//     showSJNotificationMediaStyle4();
-//     _spinitNotificationCount(flutterLocalNotificationsPlugin);
-//   }
-//
-//   Future<void> showPendingFollowUp(BuildContext context) async {
-//     if (!context.mounted) return;
-//     final prefs = await SharedPreferences.getInstance();
-//     if (!(prefs.getBool(_notificationFollowUpPendingKey) ?? false) ||
-//         (prefs.getBool('as_notification_permission_rewarded') ?? false) ||
-//         prefs.getString(_notificationFollowUpShownDateKey) == _todayKey()) {
-//       return;
-//     }
-//     await prefs.setString(_notificationFollowUpShownDateKey, _todayKey());
-//     if (context.mounted) await context.tipShow(ASToolDialog(type: .notice));
-//   }
-//
-//   _spinitNotificationCount(
-//     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
-//   ) async {
-//     if (await _shouldDisableNotifications()) return;
-//     try {
-//       int locals = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("noti1");
-//       asLog.info("==initNotificationCount==localcount:$locals==");
-//       if (locals > 0) {
-//         for (int i = 0; i < locals; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'noti1'});
-//         }
-//       }
-//       int locals2 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("noti2");
-//       asLog.info("==initNotificationCount==localcount:$locals2==");
-//       if (locals2 > 0) {
-//         for (int i = 0; i < locals2; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'noti2'});
-//         }
-//       }
-//       int locals3 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("noti3");
-//       asLog.info("==initNotificationCount==localcount:$locals3==");
-//       if (locals3 > 0) {
-//         for (int i = 0; i < locals3; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'noti3'});
-//         }
-//       }
-//       int locals4 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("noti4");
-//       asLog.info("==initNotificationCount==localcount:$locals4==");
-//       if (locals4 > 0) {
-//         for (int i = 0; i < locals4; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'noti4'});
-//         }
-//       }
-//       int fcms = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("fcm");
-//       asLog.info("==initNotificationCount==localcount:$fcms==");
-//       if (fcms > 0) {
-//         for (int i = 0; i < fcms; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'fcm'});
-//         }
-//       }
-//
-//       int unlocks = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("unlock");
-//       asLog.info("==initNotificationCount==localcount:$unlocks==");
-//       if (unlocks > 0) {
-//         for (int i = 0; i < unlocks; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {
-//             'types': 'unlock',
-//           });
-//         }
-//       }
-//
-//       int screenon = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("screenon");
-//       asLog.info("==initNotificationCount==localcount:$screenon==");
-//       if (screenon > 0) {
-//         for (int i = 0; i < screenon; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'fixed'});
-//         }
-//       }
-//
-//       int foreground = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("foreground");
-//       asLog.info("==initNotificationCount==localcount:$foreground==");
-//       if (foreground > 0) {
-//         for (int i = 0; i < foreground; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'fixed'});
-//         }
-//       }
-//
-//       int media = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("media1");
-//       asLog.info("==initNotificationCount==localcount:$media==");
-//       if (media > 0) {
-//         for (int i = 0; i < media; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'media'});
-//         }
-//       }
-//
-//       int media2 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("media2");
-//       asLog.info("==initNotificationCount==localcount:$media2==");
-//       if (media2 > 0) {
-//         for (int i = 0; i < media2; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'media'});
-//         }
-//       }
-//
-//       int media3 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("media3");
-//       asLog.info("==initNotificationCount==localcount:$media3==");
-//       if (media3 > 0) {
-//         for (int i = 0; i < media3; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'media'});
-//         }
-//       }
-//
-//       int media4 = await AndroidFlutterLocalNotificationsPlugin()
-//           .extractMessageReceivedNum("media4");
-//       asLog.info("==initNotificationCount==localcount:$media4==");
-//       if (media4 > 0) {
-//         for (int i = 0; i < media4; i++) {
-//           as_event_fire(ASTrackEvent.allNotificationTrigger, {'types': 'media'});
-//         }
-//       }
-//     } catch (e) {
-//       asLog.info("===initNotificationCount==error:$e=");
-//     }
-//   }
-//
-//   Future<void> setNoticeStatus() async {
-//     if (await _shouldDisableNotifications()) {
-//       asLog.info(
-//         'notification permission disabled for Samsung device in Korea',
-//       );
-//       return;
-//     }
-//     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-//         FlutterLocalNotificationsPlugin();
-//     var nfPermission = await flutterLocalNotificationsPlugin
-//         .resolvePlatformSpecificImplementation<
-//           AndroidFlutterLocalNotificationsPlugin
-//         >()
-//         ?.requestNotificationsPermission();
-//     if (nfPermission ?? false) {
-//       as_event_fire('push_status', {});
-//     } else {
-//       asLog.info("nf no permission");
-//       final prefs = await SharedPreferences.getInstance();
-//       await prefs.setString(_notificationPermissionHandledDateKey, _todayKey());
-//       await prefs.setBool(_notificationFollowUpPendingKey, true);
-//     }
-//   }
-//
-//   // 前台服务
-//   Future<void> startSJForegroundService({double? balance}) async {
-//     if (await _shouldDisableNotifications()) return;
-//     //自定义通知ID
-//     final int id = 1801;
-//     final currentBalance = balance ?? ASLocalProvider.instance.as_dollar_number;
-//     AndroidNotificationDetails androidNotificationDetails =
-//         AndroidNotificationDetails(
-//           'aurastackForeground',
-//           'aurastackForeground',
-//           ongoing: true,
-//           importance: Importance.min,
-//           priority: Priority.min,
-//           styleInformation: ForegroundStyleInformation(
-//             value: '${0.dolasType()}${currentBalance.toStringAsFixed(2)}',
-//             image: 'as_freground',
-//           ),
-//         );
-//     await AndroidFlutterLocalNotificationsPlugin().startForegroundService(
-//       id,
-//       '',
-//       '',
-//       notificationDetails: androidNotificationDetails,
-//       payload: 'foreground',
-//     );
-//   }
-//
-//   // 媒体通知
-//   Future<void> showSJNotificationMediaStyle1() async {
-//     //自定义通知ID
-//     final int id = 9780;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'fixed',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice0',
-//       'aurastack0',
-//       styleInformation: MediaStyleInformation(
-//         //支持网络图片链接
-//         image: 'as_sm_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 40),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "Media1",
-//     );
-//   }
-//
-//   Future<void> showSJNotificationMediaStyle2() async {
-//     //自定义通知ID
-//     final int id = 4588;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'fixed',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice21',
-//       'aurastack21',
-//       styleInformation: MediaStyleInformation(
-//         //支持网络图片链接
-//         image: 'as_sm_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 80),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "Media2",
-//     );
-//   }
-//
-//   Future<void> showSJNotificationMediaStyle3() async {
-//     //自定义通知ID
-//     final int id = 8944;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'fixed',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice31',
-//       'aurastack31',
-//       styleInformation: MediaStyleInformation(
-//         //支持网络图片链接
-//         image: 'as_sm_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 160),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "Media3",
-//     );
-//   }
-//
-//   Future<void> showSJNotificationMediaStyle4() async {
-//     //自定义通知ID
-//     final int id = 5220;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'fixed',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice41',
-//       'aurastack41',
-//       styleInformation: MediaStyleInformation(
-//         //支持网络图片链接
-//         image: 'as_sm_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 190),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "Media4",
-//     );
-//   }
-//
-//   // 本地通知
-//   Future<void> _repeatNotification1() async {
-//     //自定义通知ID
-//     final int id = 8852;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'noti1',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice1',
-//       'aurastack1',
-//       styleInformation: BeautyStyleInformation(
-//         title: title,
-//         body: body,
-//         image: 'as_big_bg',
-//         button: 'Withdraw',
-//         appIcon: 'as_big_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 30),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "noti1",
-//     );
-//   }
-//
-//   Future<void> _repeatNotification2() async {
-//     //自定义通知ID
-//     final int id = 1268;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'noti2',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice2',
-//       'aurastack2',
-//       styleInformation: BeautyStyleInformation(
-//         title: title,
-//         body: body,
-//         image: 'as_big_bg',
-//         button: 'Withdraw',
-//         appIcon: 'as_big_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 60),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "noti2",
-//     );
-//   }
-//
-//   Future<void> _repeatNotification3() async {
-//     //自定义通知ID
-//     final int id = 6722;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'noti3',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice3',
-//       'aurastack3',
-//       styleInformation: BeautyStyleInformation(
-//         title: title,
-//         body: body,
-//         image: 'as_big_bg',
-//         button: 'Withdraw',
-//         appIcon: 'as_big_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 90),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "noti3",
-//     );
-//   }
-//
-//   Future<void> _repeatNotification4() async {
-//     //自定义通知ID
-//     final int id = 1195;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'noti3',
-//     );
-//     final String title = randomMotivation.title;
-//     final String body = randomMotivation.body;
-//     AndroidNotificationDetails details = AndroidNotificationDetails(
-//       '170notice4',
-//       'aurastack4',
-//       styleInformation: BeautyStyleInformation(
-//         title: title,
-//         body: body,
-//         image: 'as_big_bg',
-//         button: 'Withdraw',
-//         appIcon: 'as_big_log',
-//       ),
-//       priority: Priority.high,
-//       importance: Importance.high,
-//       icon: 'as_sm_log',
-//       //“groupKey”：防止通知被系统折叠
-//       groupKey: "$id",
-//     );
-//     await AndroidFlutterLocalNotificationsPlugin().periodicallyShowWithDuration(
-//       id,
-//       title,
-//       body,
-//       //间隔时长根据需求设置
-//       const Duration(minutes: 120),
-//       notificationDetails: details,
-//       scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-//       payload: "noti4",
-//     );
-//   }
-//
-//   Future<void> _subscribeFcmTopic() async {
-//     await AndroidFlutterLocalNotificationsPlugin().subscribeToTopic(
-//       'c170_data_fcm',
-//       AndroidNotificationDetails(
-//         'c170_data_fcm',
-//         'aurastack',
-//         styleInformation: BeautyStyleInformation(
-//           title: '',
-//           body: '',
-//           image: 'as_big_bg',
-//           button: 'Withdraw',
-//           appIcon: 'as_big_log',
-//         ),
-//         priority: Priority.high,
-//         importance: Importance.high,
-//         icon: 'as_sm_log',
-//       ),
-//     );
-//   }
-//
-//   Future<void> _subscribeFcmTopic2() async {
-//     await AndroidFlutterLocalNotificationsPlugin().subscribeToTopic(
-//       'c170_normal_fcm',
-//       AndroidNotificationDetails(
-//         'c170_normal_fcm',
-//         'aurastack2',
-//         styleInformation: BeautyStyleInformation(
-//           title: '',
-//           body: '',
-//           image: 'as_big_bg',
-//           button: 'Claim',
-//           appIcon: 'as_big_log',
-//         ),
-//         priority: Priority.high,
-//         importance: Importance.high,
-//         icon: 'as_sm_log',
-//       ),
-//     );
-//   }
-//
-//   Future<void> _showUnlockNotification() async {
-//     //自定义通知ID
-//     final int ids = 9529;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'unlock',
-//     );
-//     final randomMotivation2 = randomMotivation;
-//     await AndroidFlutterLocalNotificationsPlugin().showBroadcastNotification(
-//       ids,
-//       randomMotivation.title,
-//       randomMotivation.body,
-//       //两次发送解锁通知的间隔，根据需求设置
-//       const Duration(seconds: 30),
-//       'android.intent.action.USER_PRESENT',
-//       AndroidNotificationDetails(
-//         '170aurastacks',
-//         'aurastacks',
-//         priority: Priority.high,
-//         importance: Importance.high,
-//         icon: 'as_sm_log',
-//         styleInformation: BeautyStyleInformation(
-//           title: randomMotivation2.title,
-//           body: randomMotivation2.body,
-//           image: 'as_big_bg',
-//           button: 'Withdraw',
-//           appIcon: 'as_big_log',
-//         ),
-//         //“groupKey”：防止通知被系统折叠
-//         groupKey: "$ids",
-//       ),
-//       'unlock',
-//     );
-//   }
-//
-//   Future<void> _showScreenOnNotification() async {
-//     //自定义通知ID
-//     final int ids = 1929;
-//     final randomMotivation = ASStepMotivationManager.getRandomMotivation(
-//       'fixed',
-//     );
-//     final randomMotivation2 = randomMotivation;
-//     await AndroidFlutterLocalNotificationsPlugin().showBroadcastNotification(
-//       ids,
-//       randomMotivation.title,
-//       randomMotivation.body,
-//       //两次发送解锁通知的间隔，根据需求设置
-//       const Duration(seconds: 30),
-//       'android.intent.action.SCREEN_ON',
-//       AndroidNotificationDetails(
-//         '170aurastackscreen',
-//         'aurastackScreen',
-//         priority: Priority.high,
-//         importance: Importance.high,
-//         icon: 'as_sm_log',
-//         styleInformation: BeautyStyleInformation(
-//           title: randomMotivation2.title,
-//           body: randomMotivation2.body,
-//           image: 'as_big_bg',
-//           button: 'Withdraw',
-//           appIcon: 'as_big_log',
-//         ),
-//         //“groupKey”：防止通知被系统折叠
-//         groupKey: "$ids",
-//       ),
-//       'screenon',
-//     );
-//   }
-//
-//   Future<void> _initLifecycleListener() async {
-//     FlutterLifecycleDetector().onBackgroundChange.listen((isBackground) async {
-//       /// `isBackground` is true => background
-//       /// `isBackground` is false => foreground
-//       asLog.info('Status background $isBackground');
-//       if (isBackground == true) {
-//         asLog.info('App进入后台');
-//         ASAudioUtils().pauseBGM();
-//         ASFKManger().as_add_tabsession_custom();
-//         // 执行后台逻辑
-//         as_session_fire();
-//         as_event_fire('session_back_get', {
-//           'pak_version': ASLocalProvider.instance.as_login_status ? 1 : 0,
-//         });
-//       } else {
-//         asLog.info('App进入前台');
-//         if (ASLocalProvider.instance.as_bg_music && !ASCardAds().someAdIsShowing()){
-//           ASAudioUtils().playBGM();
-//         }
-//         ASFKManger().as_add_tabsession_custom();
-//         as_event_fire('session_front_get', {
-//           'pak_version': ASLocalProvider.instance.as_login_status ? 1 : 0,
-//         });
-//         // 执行前台逻辑
-//         as_session_fire();
-//         if (!ASCardAds().is_showAd) {
-//           ASCardAds().as_showAd(
-//             homeKey.currentState!.context,
-//             ASTrackEvent.launchHotInterstitial,
-//             showDialog: false,
-//             onCacheResponse: (onCacheResponse) {},
-//             adDidClosed: (adDidClosed) {},
-//           );
-//         }
-//       }
-//     });
-//   }
-// }
-//
-// /// 步行激励文案数据模型
-// class ASStepMotivation {
-//   final String title;
-//   final String body;
-//
-//   ASStepMotivation({required this.title, required this.body});
-// }
-//
-// /// 步行激励文案工具类
-// class ASStepMotivationManager {
-//   static final Map<String, List<ASStepMotivation>> _motivations = {
-//     'noti1': [
-//       ASStepMotivation(
-//         title: 'Your Next Card Holds A Surprise',
-//         body: 'Scratch across and see what you get',
-//       ),
-//       ASStepMotivation(
-//         title: 'Ready For A Lucky Reveal?',
-//         body: 'Scratch your way to a cash reward',
-//       ),
-//       ASStepMotivation(
-//         title: "What’s Under The Card?",
-//         body: 'There’s only one way to find out',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Lucky Reveal Starts Now',
-//         body: 'Scratch the card and uncover your reward',
-//       ),
-//     ],
-//     'noti2': [
-//       ASStepMotivation(
-//         title: 'Your Cash Total Is Growing',
-//         body: 'Keep scratching to build more rewards',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Latest Cash Reward Is In',
-//         body: 'Check your updated earnings',
-//       ),
-//       ASStepMotivation(
-//         title: 'Cash Rewards Are Adding Up',
-//         body: 'Come back and continue your streak',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Earnings Just Got A Boost',
-//         body: 'Keep scratching for more cash',
-//       ),
-//     ],
-//     'noti3': [
-//       ASStepMotivation(
-//         title: 'You’ve Unlocked An Extra Reward',
-//         body: 'Open the app to claim it',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Lucky Bonus Just Landed',
-//         body: 'Take a look at your reward',
-//       ),
-//       ASStepMotivation(
-//         title: 'An Extra Cash Chance Is Yours',
-//         body: 'Use it while it’s available',
-//       ),
-//       ASStepMotivation(
-//         title: 'A Special Reward Was Added For You',
-//         body: 'Check it before you continue',
-//       ),
-//     ],
-//     // 解锁通知
-//     'unlock': [
-//       ASStepMotivation(
-//         title: 'Your Reward Opportunity Won’t Last',
-//         body: 'Open now while it’s active',
-//       ),
-//       ASStepMotivation(
-//         title: 'The Clock Is Running On Today’s Bonus',
-//         body: 'Claim your reward before it ends',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Special Scratch Chance Ends Soon',
-//         body: 'Don’t miss today’s opportunity',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Bonus Window Is Almost Closed',
-//         body: 'Come back before time runs out',
-//       ),
-//     ],
-//     // 固定通知
-//     'fixed': [
-//       ASStepMotivation(
-//         title: 'Your Cashout Progress Is Moving',
-//         body: 'Keep earning toward your next withdrawal',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Lucky Chance Has Changed',
-//         body: 'Try another card for a surprise',
-//       ),
-//       ASStepMotivation(
-//         title: 'Today’s Scratch Mission Is Live',
-//         body: 'Complete the challenge for extra rewards',
-//       ),
-//       ASStepMotivation(
-//         title: 'Your Cashout Goal Is Within Reach',
-//         body: 'Keep earning to get closer',
-//       ),
-//     ],
-//   };
-//
-//   /// 随机获取一条激励文案
-//   static ASStepMotivation getRandomMotivation(String type) {
-//     final motivations = _motivations[type] ?? _motivations['noti3']!;
-//     final random = DateTime.now().microsecond % motivations.length;
-//     return motivations[random];
-//   }
-// }
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'PCDialogCoordinator.dart';
+import 'PCAnalytics.dart';
+import 'PCForegroundAdController.dart';
+import 'PCInterstitialAdService.dart';
+import 'PCNewUserGuideController.dart';
+import 'PCNoticeMessage.dart';
+import 'PCPigUpgradeController.dart';
+import 'PCProcessFlowController.dart';
+import 'PCWithdrawalController.dart';
+import 'pc_LocalProvider.dart';
+import 'pc_ad_manger.dart';
+
+/// 媒体/固定通知各自独立的ID、通道及单次触发时间。
+class PCNotificationSchedule {
+  const PCNotificationSchedule(
+    this.id,
+    this.channel,
+    this.nameKey,
+    this.minutes,
+    this.payload, {
+    this.media = false,
+    this.kind = PCNoticeKind.goal,
+  });
+  final int id, minutes;
+  final String channel, nameKey, payload;
+  final bool media;
+  final PCNoticeKind kind;
+  PCNoticeMessage message(double balance, double target) =>
+      PCNoticeMessage(kind: kind, balance: balance, target: target);
+}
+
+/// FCM使用两个独立展示槽；可覆盖topic，不在客户端保存服务端密钥。
+class PCFcmNotificationSlot {
+  const PCFcmNotificationSlot(this.slotKey, this.channel, this.name, this.kind);
+  final String slotKey, channel, name;
+  final PCNoticeKind kind;
+}
+
+/// 通知唯一入口：4媒体、1前台服务、4固定单次提醒，以及2个FCM槽。
+/// 保留站内横幅和既有导航API；回前台插屏独立判定，不从通知计时器触发广告。
+class PCNoticeHelp with WidgetsBindingObserver {
+  PCNoticeHelp._({
+    bool testing = false,
+    bool Function()? isGuideComplete,
+    Future<bool> Function()? permissionEnabled,
+    double Function()? balance,
+    double Function()? target,
+    Map<String, String>? fcmTopics,
+    this._startupPermissionTimeout = startupPermissionLimit,
+  }) : _testing = testing,
+       _guideComplete = isGuideComplete,
+       _permission = permissionEnabled,
+       _readBalance = balance,
+       _readTarget = target,
+       _topicOverrides = fcmTopics;
+  factory PCNoticeHelp() => instance;
+  static final instance = PCNoticeHelp._();
+  @visibleForTesting
+  PCNoticeHelp.testing({
+    required bool Function() isGuideComplete,
+    Future<bool> Function()? permissionEnabled,
+    double Function()? balance,
+    double Function()? target,
+    Map<String, String>? fcmTopics,
+    Duration startupPermissionTimeout = startupPermissionLimit,
+  }) : this._(
+         testing: true,
+         isGuideComplete: isGuideComplete,
+         permissionEnabled: permissionEnabled,
+         balance: balance,
+         target: target,
+         fcmTopics: fcmTopics,
+         startupPermissionTimeout: startupPermissionTimeout,
+       );
+
+  static const startupPermissionLimit = Duration(seconds: 8);
+  static const foregroundServiceId = 1200;
+  static const foregroundChannel = 'pigwalletForeground';
+  static const defaultFcmTopics = {
+    'fcm1': 'c177fcm_piggy',
+    'fcm2': 'c177fcm_piggy_two',
+  };
+  static const schedules = [
+    PCNotificationSchedule(
+      5590,
+      '177notice1',
+      'Piggy Reminder 1',
+      26,
+      'noti1',
+      kind: PCNoticeKind.account,
+    ),
+    PCNotificationSchedule(4562, '177notice2', 'Piggy Reminder 2', 62, 'noti2'),
+    PCNotificationSchedule(
+      7552,
+      '177notice3',
+      'Piggy Reminder 3',
+      117,
+      'noti3',
+      kind: PCNoticeKind.goal,
+    ),
+    PCNotificationSchedule(
+      9475,
+      '177notice4',
+      'Piggy Reminder 4',
+      162,
+      'noti4',
+    ),
+    PCNotificationSchedule(
+      4738,
+      '177notice0',
+      'Piggy Media 1',
+      29,
+      'Media1',
+      media: true,
+      kind: PCNoticeKind.account,
+    ),
+    PCNotificationSchedule(
+      2788,
+      '177notice21',
+      'Piggy Media 2',
+      59,
+      'Media2',
+      media: true,
+    ),
+    PCNotificationSchedule(
+      2934,
+      '177notice31',
+      'Piggy Media 3',
+      119,
+      'Media3',
+      media: true,
+      kind: PCNoticeKind.goal,
+    ),
+    PCNotificationSchedule(
+      1320,
+      '177notice41',
+      'Piggy Media 4',
+      159,
+      'Media4',
+      media: true,
+    ),
+  ];
+  static const fcmChannels = [
+    PCFcmNotificationSlot(
+      'fcm1',
+      'pc_fcm_withdraw_v1',
+      'Piggy FCM Withdraw',
+      PCNoticeKind.goal,
+    ),
+    PCFcmNotificationSlot(
+      'fcm2',
+      'pc_fcm_claim_v1',
+      'Piggy FCM Claim',
+      PCNoticeKind.goal,
+    ),
+  ];
+  static const _planKey = 'pc_notification_plan_v3';
+  static const _topicsKey = 'pc_notification_fcm_topics_v1';
+  static const _subscribedKey = 'pc_notification_fcm_subscribed_v1';
+  static const _migrationKey = 'pc_notification_channels_migrated_v3';
+  static const _broadcastIds = [2829, 1029];
+
+  final bool _testing;
+  final bool Function()? _guideComplete;
+  final Future<bool> Function()? _permission;
+  final Duration _startupPermissionTimeout;
+  final double Function()? _readBalance, _readTarget;
+  Map<String, String>? _topicOverrides;
+  final _plugin = FlutterLocalNotificationsPlugin();
+  final _android = AndroidFlutterLocalNotificationsPlugin();
+  final banner = ValueNotifier<PCNoticeMessage?>(null);
+  final navigationReady = ValueNotifier<bool>(false);
+
+  /// 系统申请晚于启动等待返回时，通知召回宿主重新查询真实权限。
+  final startupPermissionChanges = ValueNotifier<int>(0);
+  final _timers = <Timer>[];
+  Future<void>? _initializing;
+  Future<void>? _startupPermission;
+  VoidCallback? _releaseStartupPermission;
+  bool _startupPermissionExpired = false;
+  bool _startupSystemRequestPending = false;
+
+  /// 真实系统申请尚未回调；有界启动等待结束并不表示原生授权窗口已结束。
+  bool get isStartupPermissionRequestPending => _startupSystemRequestPending;
+  Future<NotificationAppLaunchDetails?>? _launchDetails;
+  bool didNotificationLaunchApp = false;
+  bool _ready = false,
+      _disposed = false,
+      _foreground = true,
+      _observing = false;
+  bool _refreshing = false, _refreshAgain = false, _channelsCreated = false;
+  bool? _foregroundServiceEnabled;
+  String? _foregroundServiceAmount, _broadcastSignature;
+  PCNoticeAction? _pendingAction;
+  ValueChanged<PCNoticeAction>? _onAction;
+  BuildContext? _navigationContext;
+  PCForegroundAdController? _foregroundAds;
+  bool get _isAndroid =>
+      _testing || defaultTargetPlatform == TargetPlatform.android;
+  bool get _supported =>
+      _testing ||
+      (!kIsWeb && (_isAndroid || defaultTargetPlatform == TargetPlatform.iOS));
+  bool get _guideReady =>
+      _guideComplete?.call() ??
+      (PCNewUserGuideController.instance.isLoaded &&
+          PCNewUserGuideController.instance.isComplete);
+  bool get _canPresent => _foreground && _guideReady && _onAction != null;
+  double get _balance =>
+      _readBalance?.call() ?? PCLocalProvider.instance.pc_dollar_number;
+  double get _target =>
+      _readTarget?.call() ??
+      PCNewUserGuideController.instance.config.withdrawalTarget;
+
+  Future<NotificationAppLaunchDetails?> _readLaunchDetails() =>
+      _launchDetails ??=
+          (_isAndroid
+                  ? _android.getNotificationAppLaunchDetails()
+                  : _plugin.getNotificationAppLaunchDetails())
+              .then((details) {
+                didNotificationLaunchApp =
+                    details?.didNotificationLaunchApp ?? false;
+                return details;
+              });
+
+  /// 使用原生启动Intent判定来源，不能以延后导航的待处理action推断push。
+  Future<String> launchSource() async {
+    if (!_supported) return 'icon';
+    try {
+      await _readLaunchDetails();
+    } catch (_) {
+      return 'icon';
+    }
+    return didNotificationLaunchApp ? 'push' : 'icon';
+  }
+
+  Future<void> initialize() {
+    if (_disposed || _ready) return Future<void>.value();
+    return _initializing ??= _initialize().whenComplete(() {
+      _initializing = null;
+    });
+  }
+
+  /// 每次冷启动只申请一次系统通知权限；普通刷新或回前台不会再次申请。
+  Future<void> initializeForStartup() =>
+      _startupPermission ??= _initializeForStartup();
+
+  /// 召回弹窗只等待已经开始的启动申请，不能因此触发新的系统授权请求。
+  Future<void> waitForStartupPermission() =>
+      _startupPermission ?? Future<void>.value();
+
+  Future<void> _initializeForStartup() async {
+    if (_disposed || !_supported) return;
+    final release = PCDialogCoordinator.instance.holdPresentation();
+    _releaseStartupPermission = release;
+    try {
+      await _completeStartupPermission().timeout(
+        _startupPermissionTimeout,
+        onTimeout: () {
+          // 超时仅放行页面，不伪造授权，不重发仍在途的系统请求。
+          _startupPermissionExpired = true;
+          debugPrint('Notification startup permission: timed out');
+        },
+      );
+    } catch (error) {
+      debugPrint('Notification startup permission: $error');
+    } finally {
+      _releaseStartupPermission = null;
+      release();
+    }
+  }
+
+  Future<void> _completeStartupPermission() async {
+    try {
+      await initialize();
+      if (_disposed || !_ready || _startupPermissionExpired) return;
+      final enabled = await _permissionEnabled();
+      if (_disposed || _startupPermissionExpired) return;
+      if (!enabled) {
+        _startupSystemRequestPending = true;
+        try {
+          if (_isAndroid) {
+            await _android.requestNotificationsPermission();
+          } else {
+            await _plugin
+                .resolvePlatformSpecificImplementation<
+                  IOSFlutterLocalNotificationsPlugin
+                >()
+                ?.requestPermissions(alert: true, badge: true, sound: true);
+          }
+        } finally {
+          _startupSystemRequestPending = false;
+        }
+      }
+    } catch (error) {
+      // 拒绝、缺少系统界面或插件异常不能阻断启动，后续召回仍可引导设置。
+      debugPrint('Notification startup permission: $error');
+    } finally {
+      if (!_disposed) {
+        startupPermissionChanges.value++;
+        // 真实申请晚返回后依旧恢复计划；其等待不再持有全局弹窗锁。
+        if (_ready) await refreshSchedules();
+      }
+    }
+  }
+
+  Future<void> _initialize() async {
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (!_testing && !_observing) {
+      _observing = true;
+      WidgetsBinding.instance.addObserver(this);
+      PCLocalProvider.instance.addListener(_dataChanged);
+      PCNewUserGuideController.instance.addListener(_guideChanged);
+      final ads = PCPigAds();
+      _foregroundAds = PCForegroundAdController(
+        adShowing: () => ads.isNativeAdShowing,
+        adSessionVersion: () => ads.adSessionVersion,
+        lastAdFinishedAt: () => ads.lastAdFinishedAt,
+        requestInterstitial: PCInterstitialAdService.instance.request,
+        canPresent: _canShowReturnAd,
+        holdPresentation: PCDialogCoordinator.instance.holdPresentation,
+      );
+    }
+    if (_supported) {
+      try {
+        if (_isAndroid) {
+          final initialized = await _android.initialize(
+            const AndroidInitializationSettings('pc_notification_small'),
+            onDidReceiveNotificationResponse: (response) =>
+                handlePayload(response.payload),
+          );
+          if (!initialized) {
+            throw StateError('Android notifications initialization failed');
+          }
+          final launch = await _readLaunchDetails();
+          if (launch?.didNotificationLaunchApp ?? false) {
+            handlePayload(launch?.notificationResponse?.payload);
+          }
+        } else {
+          await _plugin.initialize(
+            const InitializationSettings(
+              iOS: DarwinInitializationSettings(
+                requestAlertPermission: false,
+                requestBadgePermission: false,
+                requestSoundPermission: false,
+                defaultPresentAlert: false,
+                defaultPresentBanner: false,
+                defaultPresentList: false,
+                defaultPresentSound: false,
+                defaultPresentBadge: false,
+              ),
+            ),
+            onDidReceiveNotificationResponse: (response) =>
+                handlePayload(response.payload),
+          );
+          final launch = await _readLaunchDetails();
+          if (launch?.didNotificationLaunchApp ?? false) {
+            handlePayload(launch?.notificationResponse?.payload);
+          }
+        }
+        _ready = true;
+      } catch (error) {
+        debugPrint('Notification initialization: $error');
+      }
+    }
+    if (_ready && _isAndroid) {
+      unawaited(PCAnalytics.flushNotificationTriggers());
+    }
+    _resetForegroundTimers();
+    if (_ready) await refreshSchedules();
+  }
+
+  /// 兼容更新文件入口；初始化不主动申请权限，沿用现有通知引导的用户操作。
+  Future<void> PC_initNotice(BuildContext context) => initialize();
+  Future<void> PC_startForegroundService() => refreshSchedules();
+  Future<void> PC_setNoticeStatus() async {
+    await initialize();
+    if (_isAndroid && _supported) {
+      await _android.requestNotificationsPermission();
+    }
+    await refreshSchedules();
+  }
+
+  void attachNavigation(
+    ValueChanged<PCNoticeAction> callback, {
+    BuildContext? context,
+  }) {
+    _onAction = callback;
+    _navigationContext = context;
+    navigationReady.value = true;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _deliverPendingAction(),
+    );
+    _resetForegroundTimers();
+  }
+
+  void detachNavigation(ValueChanged<PCNoticeAction> callback) {
+    if (_onAction != callback) return;
+    _onAction = null;
+    _navigationContext = null;
+    navigationReady.value = false;
+    dismiss();
+    _resetForegroundTimers();
+  }
+
+  void handlePayload(String? payload) {
+    final action = PCNoticeMessage.parseAction(payload);
+    if (action == null) return;
+    final lower = (payload ?? '').toLowerCase();
+    PCAnalytics.event('inform_c', {
+      'type': lower.contains('fcm')
+          ? 'fcm'
+          : lower.contains('unlock') || lower.contains('screen')
+          ? 'unlock'
+          : 'local',
+    });
+    _pendingAction = action;
+    _deliverPendingAction();
+  }
+
+  void _deliverPendingAction() {
+    if (!_canPresent || _pendingAction == null || _disposed) return;
+    final action = _pendingAction!;
+    _pendingAction = null;
+    _onAction?.call(action);
+  }
+
+  void open(PCNoticeMessage message) => openAction(message.action);
+  void openAction(PCNoticeAction action) {
+    dismiss();
+    _pendingAction = action;
+    _deliverPendingAction();
+  }
+
+  void dismiss() => banner.value = null;
+  bool _canShowReturnAd() {
+    final context = _navigationContext;
+    return _isAndroid &&
+        _canPresent &&
+        _pendingAction == null &&
+        (context == null ||
+            (context.mounted && ModalRoute.of(context)?.isCurrent == true)) &&
+        !PCDialogCoordinator.instance.isBusy &&
+        !PCWithdrawalController.instance.hasPending &&
+        !PCProcessFlowController.instance.hasPending &&
+        !PCPigUpgradeController.instance.isBlocked &&
+        !PCPigUpgradeController.instance.isPresenting;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) dismiss();
+    _resetForegroundTimers();
+    // 通知导航尚未消费时先排除回流广告，避免点击通知后同时打开插屏。
+    unawaited(
+      _foregroundAds?.didChangeAppLifecycleState(state) ??
+          Future<bool>.value(false),
+    );
+    if (_foreground) {
+      if (_isAndroid) unawaited(PCAnalytics.flushNotificationTriggers());
+      _deliverPendingAction();
+      unawaited(refreshSchedules());
+    }
+  }
+
+  void _guideChanged() {
+    _resetForegroundTimers();
+    if (!_guideReady) dismiss();
+    _deliverPendingAction();
+    unawaited(refreshSchedules());
+  }
+
+  void _dataChanged() {
+    // 余额变化仅同步已有通知和前台服务，不再触发提现就绪横幅。
+    final current = banner.value;
+    if (current != null) {
+      banner.value = PCNoticeMessage(
+        kind: current.kind,
+        balance: _balance,
+        target: _target,
+      );
+    }
+    unawaited(refreshSchedules());
+  }
+
+  void _resetForegroundTimers() {
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
+    if (_testing || !_canPresent || _disposed) return;
+    for (final job in PCNoticeJob.all) {
+      _timers.add(
+        Timer(Duration(minutes: job.minutes), () {
+          if (_canPresent && !_disposed) {
+            banner.value = job.message(_balance, _target);
+          }
+        }),
+      );
+    }
+  }
+
+  Future<bool> _permissionEnabled() async {
+    if (_permission != null) return _permission();
+    if (_isAndroid) return await _android.areNotificationsEnabled() ?? false;
+    final permission = await _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >()
+        ?.checkPermissions();
+    return (permission?.isEnabled ?? false) ||
+        (permission?.isProvisionalEnabled ?? false);
+  }
+
+  BeautyStyleInformation _beauty(PCNoticeMessage message) =>
+      BeautyStyleInformation(
+        template: message.kind.name,
+        title: message.title,
+        body: message.body,
+        amount: message.amount,
+        button: message.button,
+        appIcon: 'pc_notice_account_icon',
+      );
+  AndroidNotificationDetails _details(
+    String channel,
+    String name,
+    PCNoticeMessage message, {
+    bool media = false,
+  }) => AndroidNotificationDetails(
+    channel,
+    name,
+    icon: 'pc_notification_small',
+    importance: Importance.high,
+    priority: Priority.high,
+    autoCancel: true,
+    onlyAlertOnce: true,
+    styleInformation: media
+        ? MediaStyleInformation(image: 'pc_notice_account_icon')
+        : _beauty(message),
+  );
+  Future<void> _createChannels() async {
+    if (_channelsCreated) return;
+    for (final schedule in schedules) {
+      await _android.createNotificationChannel(
+        AndroidNotificationChannel(
+          schedule.channel,
+          schedule.nameKey,
+          importance: Importance.high,
+        ),
+      );
+    }
+    await _android.createNotificationChannel(
+      const AndroidNotificationChannel(
+        foregroundChannel,
+        'Piggy Bank Balance',
+        importance: Importance.low,
+      ),
+    );
+    for (final slot in fcmChannels) {
+      await _android.createNotificationChannel(
+        AndroidNotificationChannel(
+          slot.channel,
+          slot.name,
+          importance: Importance.high,
+        ),
+      );
+    }
+    _channelsCreated = true;
+  }
+
+  Future<void> _migrate(SharedPreferences prefs) async {
+    if (prefs.getBool(_migrationKey) == true) return;
+    await _android.stopForegroundService();
+    for (final id in [8852, 1268, 6722, 1195, 17759]) {
+      await _android.cancel(id);
+    }
+    for (final channel in [
+      'pc_balance_service_v1',
+      'pc_piggy_reminders_v1',
+      '177PigWalletSPines',
+      '177PigWalletSPinescreen',
+    ]) {
+      await _android.deleteNotificationChannel(channel);
+    }
+    await prefs.setBool(_migrationKey, true);
+  }
+
+  Future<void> _refreshForegroundService(bool enabled) async {
+    if (!enabled) {
+      if (_foregroundServiceEnabled != false) {
+        await _android.stopForegroundService();
+      }
+      _foregroundServiceEnabled = false;
+      _foregroundServiceAmount = null;
+      return;
+    }
+    if (!_foreground) return;
+    final message = PCNoticeMessage(
+      kind: PCNoticeKind.account,
+      balance: _balance,
+      target: _target,
+    );
+    if (_foregroundServiceEnabled == true &&
+        _foregroundServiceAmount == message.amount) {
+      return;
+    }
+    await _android.startForegroundService(
+      foregroundServiceId,
+      message.title,
+      message.body,
+      notificationDetails: AndroidNotificationDetails(
+        foregroundChannel,
+        'Piggy Bank Balance',
+        icon: 'pc_notification_small',
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: true,
+        showWhen: false,
+        playSound: false,
+        enableVibration: false,
+        category: AndroidNotificationCategory.service,
+        styleInformation: _beauty(message),
+      ),
+      payload: 'foreground',
+    );
+    _foregroundServiceEnabled = true;
+    _foregroundServiceAmount = message.amount;
+  }
+
+  Map<String, dynamic> _readMap(SharedPreferences prefs, String key) {
+    try {
+      return Map<String, dynamic>.from(
+        jsonDecode(prefs.getString(key) ?? '{}') as Map,
+      );
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// 单次计划保留绝对时间；刷新余额不推迟，已发项不按间隔重排。
+  Future<void> _scheduleOnce(SharedPreferences prefs) async {
+    final revision = schedules.map((s) => '${s.id}:${s.minutes}').join(',');
+    var plan = _readMap(prefs, _planKey);
+    if (plan['revision'] != revision || plan['anchor'] is! int) {
+      plan = {
+        'revision': revision,
+        'anchor': DateTime.now().millisecondsSinceEpoch,
+        'issued': <int>[],
+        'signatures': <String, String>{},
+      };
+      await prefs.setString(_planKey, jsonEncode(plan));
+    }
+    final anchor = DateTime.fromMillisecondsSinceEpoch(
+      plan['anchor'] as int,
+      isUtc: true,
+    );
+    final issued = (plan['issued'] as List? ?? []).whereType<int>().toSet();
+    final suspended = (plan['suspended'] as List? ?? [])
+        .whereType<int>()
+        .toSet();
+    final signatures = Map<String, dynamic>.from(
+      plan['signatures'] as Map? ?? {},
+    );
+    final copyIndices = Map<String, dynamic>.from(
+      plan['copyIndices'] as Map? ?? {},
+    );
+    final pending = (await _android.pendingNotificationRequests())
+        .map((p) => p.id)
+        .toSet();
+    for (final schedule in schedules) {
+      final due = anchor.add(Duration(minutes: schedule.minutes));
+      final key = '${schedule.id}';
+      var copyIndex = copyIndices[key];
+      if (copyIndex is! int ||
+          copyIndex < 0 ||
+          copyIndex >= PCStepMotivationManager.templateCount) {
+        copyIndex = PCStepMotivationManager.randomIndex();
+        copyIndices[key] = copyIndex;
+      }
+      final copy = PCStepMotivationManager.PC_getMotivation(
+        copyIndex,
+        balance: _balance,
+      );
+      final original = schedule.message(_balance, _target);
+      final message = PCNoticeMessage(
+        kind: original.kind == PCNoticeKind.account
+            ? PCNoticeKind.goal
+            : original.kind,
+        balance: _balance,
+        target: _target,
+        titleOverride: copy.title,
+        bodyOverride: copy.body,
+      );
+      final signature =
+          '${message.kind.name}:${message.amount}:${message.title}:${message.body}';
+      if ((issued.contains(schedule.id) &&
+              !pending.contains(schedule.id) &&
+              !suspended.contains(schedule.id)) ||
+          !due.isAfter(DateTime.now())) {
+        suspended.remove(schedule.id);
+        continue;
+      }
+      if (pending.contains(schedule.id) &&
+          signatures['${schedule.id}'] == signature) {
+        continue;
+      }
+      try {
+        await _android.zonedSchedule(
+          schedule.id,
+          message.title,
+          message.body,
+          tz.TZDateTime.from(due, tz.UTC),
+          _details(
+            schedule.channel,
+            schedule.nameKey,
+            message,
+            media: schedule.media,
+          ),
+          scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: schedule.payload,
+        );
+        issued.add(schedule.id);
+        suspended.remove(schedule.id);
+        signatures['${schedule.id}'] = signature;
+        plan = {
+          ...plan,
+          'issued': issued.toList(),
+          'signatures': signatures,
+          'suspended': suspended.toList(),
+          'copyIndices': copyIndices,
+        };
+        await prefs.setString(_planKey, jsonEncode(plan));
+      } catch (error) {
+        debugPrint('Notification ${schedule.id}: $error');
+      }
+    }
+    await prefs.setString(
+      _planKey,
+      jsonEncode({
+        ...plan,
+        'suspended': suspended.toList(),
+        'copyIndices': copyIndices,
+      }),
+    );
+  }
+
+  Future<void> _suspendPlan(SharedPreferences prefs) async {
+    final plan = _readMap(prefs, _planKey);
+    if (plan.isEmpty) return;
+    final pending = (await _android.pendingNotificationRequests())
+        .map((p) => p.id)
+        .toSet();
+    final suspended = (plan['suspended'] as List? ?? [])
+        .whereType<int>()
+        .toSet();
+    suspended.addAll(
+      schedules.where((s) => pending.contains(s.id)).map((s) => s.id),
+    );
+    await prefs.setString(
+      _planKey,
+      jsonEncode({...plan, 'suspended': suspended.toList()}),
+    );
+  }
+
+  Future<void> configureFcmTopics({
+    String? withdrawTopic,
+    String? earnTopic,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final topics = {
+      ...defaultFcmTopics,
+      ..._readMap(prefs, _topicsKey),
+      ...?_topicOverrides,
+    };
+    if (withdrawTopic != null) topics['fcm1'] = withdrawTopic.trim();
+    if (earnTopic != null) topics['fcm2'] = earnTopic.trim();
+    _topicOverrides = topics.map(
+      (key, value) => MapEntry(key, value.toString()),
+    );
+    await prefs.setString(_topicsKey, jsonEncode(_topicOverrides));
+    await initialize();
+    await refreshSchedules();
+  }
+
+  Future<void> _refreshFcm(SharedPreferences prefs, bool enabled) async {
+    final topics = {
+      ...defaultFcmTopics,
+      ..._readMap(prefs, _topicsKey),
+      ...?_topicOverrides,
+    };
+    final previous = _readMap(prefs, _subscribedKey);
+    for (final slot in fcmChannels) {
+      final raw = topics[slot.slotKey]?.toString().trim() ?? '';
+      final topic = raw.replaceFirst(RegExp(r'^/topics/'), '');
+      final desired = enabled && RegExp(r'^[a-zA-Z0-9\-_.~%]+$').hasMatch(topic)
+          ? topic
+          : '';
+      final old = previous[slot.slotKey]?.toString() ?? '';
+      try {
+        if (old.isNotEmpty && old != desired) {
+          if (await _android
+                  .unsubscribeFromTopic(old)
+                  .timeout(const Duration(seconds: 3)) !=
+              true) {
+            continue;
+          }
+          previous.remove(slot.slotKey);
+          previous.remove('${slot.slotKey}Signature');
+        }
+        if (desired.isEmpty || (!_testing && Firebase.apps.isEmpty)) continue;
+        final message = PCNoticeMessage(
+          kind: slot.kind,
+          balance: _balance,
+          target: _target,
+        );
+        final signature = '$desired:${message.kind.name}:${message.amount}';
+        if (previous['${slot.slotKey}Signature'] == signature &&
+            old == desired) {
+          continue;
+        }
+        if (await _android
+                .subscribeToTopic(
+                  desired,
+                  _details(slot.channel, slot.name, message),
+                  payload: slot.slotKey,
+                )
+                .timeout(const Duration(seconds: 3)) ==
+            true) {
+          previous[slot.slotKey] = desired;
+          previous['${slot.slotKey}Signature'] = signature;
+        }
+      } catch (error) {
+        debugPrint('FCM ${slot.slotKey}: $error');
+      }
+    }
+    await prefs.setString(_subscribedKey, jsonEncode(previous));
+  }
+
+  Future<void> _refreshBroadcasts() async {
+    final signature = '$_balance:$_target';
+    if (_broadcastSignature == signature) return;
+    for (var i = 0; i < _broadcastIds.length; i++) {
+      final schedule = schedules[i];
+      final copy = PCStepMotivationManager.PC_getRandomMotivation(
+        balance: _balance,
+      );
+      final message = PCNoticeMessage(
+        kind: PCNoticeKind.goal,
+        balance: _balance,
+        target: _target,
+        titleOverride: copy.title,
+        bodyOverride: copy.body,
+      );
+      await _android.showBroadcastNotification(
+        _broadcastIds[i],
+        message.title,
+        message.body,
+        const Duration(seconds: 30),
+        i == 0
+            ? 'android.intent.action.SCREEN_OFF'
+            : 'android.intent.action.SCREEN_ON',
+        _details(schedule.channel, schedule.nameKey, message),
+        i == 0 ? 'screenoff' : 'screenon',
+        randomMessages: [
+          for (
+            var index = 0;
+            index < PCStepMotivationManager.templateCount;
+            index++
+          )
+            {
+              'title': PCStepMotivationManager.PC_getMotivation(
+                index,
+                balance: _balance,
+              ).title,
+              'body': PCStepMotivationManager.PC_getMotivation(
+                index,
+                balance: _balance,
+              ).body,
+            },
+        ],
+      );
+    }
+    _broadcastSignature = signature;
+  }
+
+  Future<void> refreshSchedules() async {
+    if (_disposed || !_isAndroid) return;
+    if (!_ready) {
+      await initialize();
+      return;
+    }
+    if (!_testing && !PCNewUserGuideController.instance.isLoaded) return;
+    if (_refreshing) {
+      _refreshAgain = true;
+      return;
+    }
+    _refreshing = true;
+    try {
+      do {
+        _refreshAgain = false;
+        final prefs = await SharedPreferences.getInstance();
+        final enabled = _guideReady && await _permissionEnabled();
+        await _migrate(prefs);
+        if (!enabled) {
+          await _suspendPlan(prefs);
+          await _refreshForegroundService(false);
+          for (final id in [...schedules.map((s) => s.id), ..._broadcastIds]) {
+            await _android.cancel(id);
+          }
+          await _refreshFcm(prefs, false);
+          _broadcastSignature = null;
+          continue;
+        }
+        await _createChannels();
+        await _refreshForegroundService(true);
+        await _scheduleOnce(prefs);
+        await _refreshFcm(prefs, true);
+        await _refreshBroadcasts();
+      } while (_refreshAgain && !_disposed);
+    } catch (error) {
+      debugPrint('Notification refresh: $error');
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _releaseStartupPermission?.call();
+    _releaseStartupPermission = null;
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _foregroundAds?.dispose();
+    if (!_testing) {
+      WidgetsBinding.instance.removeObserver(this);
+      PCLocalProvider.instance.removeListener(_dataChanged);
+      PCNewUserGuideController.instance.removeListener(_guideChanged);
+    }
+    banner.dispose();
+    navigationReady.dispose();
+    startupPermissionChanges.dispose();
+  }
+}
+
+/// 后续替换文案的兼容入口，当前沿用项目已确认的英文余额和提现提示。
+class PCStepMotivation {
+  const PCStepMotivation({required this.title, required this.body});
+  final String title, body;
+}
+
+class PCStepMotivationManager {
+  static const _templates = [
+    ('Piggy Almost Full!', 'You’ve saved {amount}—cash out before it spills!'),
+    ('Cash-Out Time 🎉', 'Spin & play—your balance is ready to grab!'),
+    (
+      'Your Payout Is Ready! 💰',
+      'Piggy bank is full and ready to pop—open the app to collect your cash.',
+    ),
+    (
+      'Advertiser Just Paid You! 🎁',
+      'Tap to feed your piggy & claim today’s payout.',
+    ),
+    ('Balance Near Max 💵', 'Almost full—withdraw before it’s gone!'),
+  ];
+  static const templateCount = 5;
+  static final _random = Random();
+  static int randomIndex() => _random.nextInt(templateCount);
+  static PCStepMotivation PC_getRandomMotivation({double? balance}) =>
+      PC_getMotivation(randomIndex(), balance: balance);
+  static PCStepMotivation PC_getMotivation(int index, {double? balance}) {
+    final (title, body) = _templates[index.abs() % templateCount];
+    final value = balance ?? PCLocalProvider.instance.pc_dollar_number;
+    final amount =
+        '\$${(value.isFinite ? max(0.0, value) : 0.0).toStringAsFixed(2)}';
+    return PCStepMotivation(
+      title: title,
+      body: body.replaceAll('{amount}', amount),
+    );
+  }
+}

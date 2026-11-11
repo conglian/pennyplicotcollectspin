@@ -5,50 +5,65 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_tba_info/flutter_tba_info.dart';
 import 'PCLogger.dart';
 
-
-void as_session_fire() async {
+Future<void> pc_session_fire() => _pcSafeReport(() async {
+  asLog.info('[session] collecting TBA metadata');
   var baseBody = await PCRequestHelpers().baseBody();
-  baseBody["buddy"] = {};
-  PCRequestHelpers().post(baseBody, 2);
-}
+  baseBody["fritz"] = 'lemon';
+  await PCRequestHelpers().post(baseBody, 2);
+}, operation: 'session');
 
-void as_ad_fire(Map<String, dynamic> body) async {
+Future<void> pc_ad_fire(Map<String, dynamic> body) => _pcSafeReport(() async {
   var baseBody = await PCRequestHelpers().baseBody();
-  Map<String, dynamic> bliss = {};
-  for (String key in body.keys){
-    bliss[key] = body[key];
+  Map<String, dynamic> goat = {};
+  for (String key in body.keys) {
+    goat[key] = body[key];
   }
-  baseBody["bliss"] = bliss;
-  PCRequestHelpers().post(baseBody, 3);
-}
+  baseBody["goat"] = goat;
+  await PCRequestHelpers().post(baseBody, 3);
+});
 
-void as_event_fire(String name, Map<String, dynamic> body) async {
-  var baseBodys = await PCRequestHelpers().baseBody();
-  baseBodys["flash"] = name;
-  for (String key in body.keys){
-    baseBodys['${key}\$chintzy'] = body[key];
-  }
-  PCRequestHelpers().post(baseBodys, 0);
-}
+Future<void> pc_event_fire(String name, Map<String, dynamic> body) =>
+    _pcSafeReport(() async {
+      var baseBodys = await PCRequestHelpers().baseBody();
+      baseBodys["fritz"] = name;
+      for (String key in body.keys) {
+        baseBodys['sob<${key}'] = body[key];
+      }
+      await PCRequestHelpers().post(baseBodys, 0);
+    });
 
-void as_install_fire() async {
+Future<void> pc_install_fire() => _pcSafeReport(() async {
   var baseBody = await PCRequestHelpers().baseBody();
   var map = await FlutterTbaInfo.instance.getReferrerMap();
-  Map<String, dynamic> riga = {
-    "italic": map['build'],
-    'caustic' : map['referrer_url'],
-    "phoebe": map['install_version'],
-    "krill": map['user_agent'],
-    "kennedy": 'touch',
-    "value": map['referrer_click_timestamp_seconds'],
-    "dumpty": map['install_begin_timestamp_seconds'],
-    "maze": map['referrer_click_timestamp_server_seconds'],
-    "railroad": map['install_begin_timestamp_server_seconds'],
-    "lundberg": map['install_first_seconds'],
-    "baneful": map['last_update_seconds'],
+  Map<String, dynamic> vikram = {
+    "alumni": map['build'],
+    'lumen': map['referrer_url'],
+    "chili": map['install_version'],
+    "sockeye": map['user_agent'],
+    "sharpe": 'trail',
+    "fop": map['referrer_click_timestamp_seconds'],
+    "currant": map['install_begin_timestamp_seconds'],
+    "hanukkah": map['referrer_click_timestamp_server_seconds'],
+    "caution": map['install_begin_timestamp_server_seconds'],
+    "pecos": map['install_first_seconds'],
+    "upright": map['last_update_seconds'],
   };
-  baseBody["riga"] = riga;
-  PCRequestHelpers().post(baseBody, 1);
+  baseBody["vikram"] = vikram;
+  await PCRequestHelpers().post(baseBody, 1);
+});
+
+Future<void> _pcSafeReport(
+  Future<void> Function() report, {
+  String? operation,
+}) async {
+  try {
+    await report();
+  } catch (error) {
+    if (operation != null) {
+      asLog.error('[TBA][$operation] report failed (${error.runtimeType})');
+    }
+    // 设备信息插件或上报不可用时不把异常抛回UI业务。
+  }
 }
 
 class PCRequestHelpers {
@@ -61,32 +76,29 @@ class PCRequestHelpers {
   PCRequestHelpers._internal();
 
   static String cloak_Url =
-      "";
+      "https://sang.moolashjarpiggypro.com/rowena/trigram";
 
   static String tba_event_Url_test =
-      "";
+      "https://test-rich.moolashjarpiggypro.com/ferric/cytosine/foamy";
 
   static String tba_event_Url_release =
-      "";
+      "https://rich.moolashjarpiggypro.com/torr/whim/wan";
 
-  static String tba_event_Url = kDebugMode ? tba_event_Url_test : tba_event_Url_release;
+  static String tba_event_Url = kDebugMode
+      ? tba_event_Url_test
+      : tba_event_Url_release;
 
-  final Map<String, String> normalHeader = {
-    'Content-Type': 'application/json',
-  };
+  final Map<String, String> normalHeader = {'Content-Type': 'application/json'};
 
-  Map<String, String> eventHeader = {
-    'Content-Type': 'application/json',
-  };
+  Map<String, String> eventHeader = {'Content-Type': 'application/json'};
 
   Future<dynamic> getCloak() async {
-    var url = Uri.parse("${cloak_Url}?smelly=${await FlutterTbaInfo.instance.getBundleId()}&eruption=lucid&hardin=${await FlutterTbaInfo.instance.getAppVersion()}&waken=${DateTime.now().millisecondsSinceEpoch}");
+    var url = Uri.parse(
+      "${cloak_Url}?monarchy=${await FlutterTbaInfo.instance.getBundleId()}&indwell=durance&pasteup=${await FlutterTbaInfo.instance.getAppVersion()}&sanford=${DateTime.now().millisecondsSinceEpoch}",
+    );
     asLog.info("pennypilot play land config request ${url}");
     try {
-      var response = await http.get(
-        url,
-        headers: normalHeader,
-      );
+      var response = await http.get(url, headers: normalHeader);
       return _handleResponse(response);
     } catch (e) {
       asLog.error("upload event [cloak] faild error $e");
@@ -117,7 +129,8 @@ class PCRequestHelpers {
       return _handleResponse(response);
     } catch (e) {
       // Debug 环境测试域名不可解析时回退正式地址，避免埋点因 DNS 问题完全丢失。
-      final isDnsFailure = e is SocketException ||
+      final isDnsFailure =
+          e is SocketException ||
           e.toString().contains('Failed host lookup') ||
           e.toString().contains('Network is unreachable');
       if (isDnsFailure && tba_event_Url != tba_event_Url_release) {
@@ -155,53 +168,52 @@ class PCRequestHelpers {
   }
 
   void _refreshHeader() async {
-    eventHeader = {
-      'Content-Type': 'application/json',
-    };
+    eventHeader = {'Content-Type': 'application/json'};
   }
 
   void init() {
     _refreshHeader();
   }
-
-
 }
+
 // request parmerters
 extension RequestHelpersExtension on PCRequestHelpers {
   Future<String> getConfigQueryString() async {
     var queryBody = {
-      "smelly": await FlutterTbaInfo.instance.getBundleId(),
-      "eruption": 'lucid',
-      "hardin": await FlutterTbaInfo.instance.getAppVersion(),
+      "monarchy": await FlutterTbaInfo.instance.getBundleId(),
+      "indwell": 'durance',
+      "pasteup": await FlutterTbaInfo.instance.getAppVersion(),
     };
-    asLog.debug(
-      'queryBody=$queryBody',
-    );
+    asLog.debug('queryBody=$queryBody');
     return Uri(queryParameters: queryBody).query;
   }
+
   // 通用字段
   Future<Map<String, dynamic>> baseBody() async {
     Map<String, dynamic> baseBody = {};
 
-    Map<String, dynamic> calf = {
-      "smelly": await FlutterTbaInfo.instance.getBundleId(),
-      "eruption": 'lucid',
-      'hardin' : await FlutterTbaInfo.instance.getAppVersion(),
-      'preston' : await FlutterTbaInfo.instance.getDistinctId(),
-      "eastman": await FlutterTbaInfo.instance.getLogId(),
-      'waken' : DateTime.now().millisecondsSinceEpoch,
-      "palermo": await FlutterTbaInfo.instance.getManufacturer(),
-      'ague' : await FlutterTbaInfo.instance.getBrand(),
-      "connally": await FlutterTbaInfo.instance.getDeviceModel(),
-      'antelope' : await FlutterTbaInfo.instance.getOsVersion(),
-      'hoop' : await FlutterTbaInfo.instance.getOperator(),
-      'handsome' : await FlutterTbaInfo.instance.getSystemLanguage(),
-      'hearst' : await FlutterTbaInfo.instance.getAndroidId(),
-      "fix": await FlutterTbaInfo.instance.getGaid(),
-      "manifold": await FlutterTbaInfo.instance.getOsCountry(),
+    Map<String, dynamic> woodruff = {
+      "hid": await FlutterTbaInfo.instance.getAndroidId(),
+      "monarchy": await FlutterTbaInfo.instance.getBundleId(),
+      'sanford': DateTime.now().millisecondsSinceEpoch,
+      "sloop": await FlutterTbaInfo.instance.getDeviceModel(),
+      'petiole': await FlutterTbaInfo.instance.getDistinctId(),
+      "indwell": 'durance',
+      'molt': await FlutterTbaInfo.instance.getOsVersion(),
+      "nobel": await FlutterTbaInfo.instance.getOsCountry(),
+      'acacia': await FlutterTbaInfo.instance.getSystemLanguage(),
+      "screw": await FlutterTbaInfo.instance.getGaid(),
     };
-    baseBody['calf'] = calf;
+    baseBody['woodruff'] = woodruff;
+
+    Map<String, dynamic> align = {
+      'pasteup': await FlutterTbaInfo.instance.getAppVersion(),
+      "reticent": await FlutterTbaInfo.instance.getLogId(),
+      "within": await FlutterTbaInfo.instance.getManufacturer(),
+      'stealthy': await FlutterTbaInfo.instance.getBrand(),
+      'erotica': await FlutterTbaInfo.instance.getOperator(),
+    };
+    baseBody['align'] = align;
     return baseBody;
   }
-
 }

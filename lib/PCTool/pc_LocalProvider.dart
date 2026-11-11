@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'PCLogger.dart';
+import 'PCNumberManager.dart';
+import 'PCPigProgress.dart';
+import 'PCPigUpgradeController.dart';
 import 'pc_extension_help.dart';
 
 final trigger = PCThresholdTrigger();
@@ -458,6 +461,8 @@ class PCLocalProvider extends ChangeNotifier {
   // 3. 初始化：从本地存储加载数据（组件初始化时调用）
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    await PCNumberHelpers().pc_initNumberModel(preferences: prefs);
+    await PCPigProgress.sync(prefs);
     // 从本地读取值（key自定义，需与存储时一致）
     pc_tx_dice_index = prefs.getInt('pc_tx_dice_index') ?? 0;
     pc_tx_card_first = prefs.getInt('pc_tx_card_first') ?? 0;
@@ -476,8 +481,12 @@ class PCLocalProvider extends ChangeNotifier {
     add_olduser_point = prefs.getDouble('add_olduser_point') ?? 3.0;
     pc_tx_wheel_index = prefs.getInt('pc_tx_wheel_index') ?? 0;
     pc_tx_bubble_index = prefs.getInt('pc_tx_bubble_index') ?? 0;
-    pc_current_ranking = prefs.getInt('pc_current_ranking') ?? 99;
-    pc_all_ranking = prefs.getInt('pc_all_ranking') ?? 388;
+    pc_current_ranking =
+        prefs.getInt('pc_current_ranking') ??
+        PCNumberHelpers().pc_queueNumber.intCurrent;
+    pc_all_ranking =
+        prefs.getInt('pc_all_ranking') ??
+        PCNumberHelpers().pc_queueNumber.intAll;
     pc_rank_ad_count = prefs.getInt('pc_rank_ad_count') ?? 388;
     pc_tx_task_index = prefs.getInt('pc_tx_task_index') ?? 0;
     pc_quiz_task_index = prefs.getInt('pc_quiz_task_index') ?? 0;
@@ -504,7 +513,7 @@ class PCLocalProvider extends ChangeNotifier {
     pc_quzi_row = prefs.getInt('pc_quzi_row') ?? 0;
     pc_wheel_number = prefs.getInt('pc_wheel_number') ?? 0;
     quiz_console = prefs.getInt('quiz_console') ?? 5;
-    new_ad_console = prefs.getInt('new_ad_console') ?? 1;
+    new_ad_console = PCNumberHelpers().model.newAdConsole;
     pc_bg_music = prefs.getBool('pc_bg_music') ?? true;
     pc_sound_music = prefs.getBool('pc_sound_music') ?? true;
     pc_tx_task3_tips = prefs.getBool('pc_tx_task3_tips') ?? false;
@@ -606,12 +615,42 @@ class PCLocalProvider extends ChangeNotifier {
     );
     pc_task_pig_claimed = prefs.getBool('pc_task_pig_claimed') ?? false;
     pc_card_quicken_num = prefs.getDouble('pc_card_quicken_nums') ?? 0;
+    await PCPigUpgradeController.instance.refresh();
     Future.delayed(Duration(milliseconds: 100), () {
       notifyListeners(); // 加载完成后通知UI更新
     });
   }
 
   // 通用bool
+  /// 音乐设置只同步自己的缓存，避免切换开关触发整个数值/奖励初始化。
+  Future<void> loadAudioSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    pc_bg_music = prefs.getBool(pc_bg_musicName) ?? true;
+    pc_sound_music = prefs.getBool(pc_sound_musicName) ?? true;
+    notifyListeners();
+  }
+
+  /// 设置页的两个声音开关独立落盘，写入成功后立即通知界面。
+  Future<void> updateAudioSettings({
+    bool? backgroundMusic,
+    bool? soundEffects,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (backgroundMusic != null) {
+      if (!await prefs.setBool(pc_bg_musicName, backgroundMusic)) {
+        throw StateError('Background music preference could not be saved');
+      }
+      pc_bg_music = backgroundMusic;
+    }
+    if (soundEffects != null) {
+      if (!await prefs.setBool(pc_sound_musicName, soundEffects)) {
+        throw StateError('Sound effects preference could not be saved');
+      }
+      pc_sound_music = soundEffects;
+    }
+    notifyListeners();
+  }
+
   Future<bool> updateBool(String key, bool value) async {
     final prefs = await SharedPreferences.getInstance();
     bool reuslt = await prefs.setBool(key, value);
@@ -650,7 +689,6 @@ class PCLocalProvider extends ChangeNotifier {
     await init();
   }
 
-
   // 通用String
   Future<bool> updateString(String key, String value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -659,4 +697,3 @@ class PCLocalProvider extends ChangeNotifier {
     return reuslt;
   }
 }
-

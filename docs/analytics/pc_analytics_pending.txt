@@ -1,0 +1,22 @@
+打点逐项确认与处理（2026-10-28）
+来源：原飞书打点表，以及本会话用户对10项的逐条确认。
+
+1. adjust_suc：真实归因回调trackerName等于Organic为A（adjust_user=0），其余为B（1）。
+2. diamond_pig_getpop_c：独立记录钻石升级按钮点击，不再沿用曝光同名事件。
+3. collect_diamond_pop / collect_diamond_pop_c：对应升级到钻石的同一弹窗/确认按钮；各自事件一次。
+4. h5_c：仅保留新版转盘宝箱气泡及呼吸动画，答题右上宝箱已移除。转盘点击打开本地PCWebkitview，title=Games，url=https://tinyurl.com/dfr3jy4u；点击h5_c、页面真实首帧h5_page各一次。
+5. ad_limit_pop：遵照确认暂不新增限额/触发业务，保留现有组件曝光点。
+6. priority_user_pop / priority_user_pop_c：已确认当前开箱页曝光、下一张真实领取配置钻石奖励页Collect点击的两阶段映射正确，保持。
+7. 金苹果：入口必出nkmdl_applebub_int插屏；奖励框Claim带AD并出asd_rv激励，成功才发奖；关闭按概率出nkmdl_applebub_getpop_int。
+8. 两个带AD阶段气泡：点击后的入口激励使用nkmdl_moneybub_getpop_rv。保留已确认两笔奖励/动画，后继获得框Claim仍是概率插屏；不制造额外激励调用。
+9. 2026-10-28最新：冷启动需要开屏和热启动回前台都直接走正常nkmdl_launch插屏入口，不在外层检查缓存，由管理器记录chance及失败原因；提现video任务保留withdrawal_task_video。
+10. inform_p：排除FCM，其余实际通知发送均记录，含前台服务首次、余额更新、15分钟刷新、媒体/固定/亮锁屏。计划注册不算曝光。FCM历史队列只确认清除，不报告曝光；通知点击inform_c仍按local/unlock/fcm区分。
+
+当前无需补充的未知项。暂缓范围仅广告上限业务触发。
+
+协议说明：
+- ad_impression仅复用pc_ad_fire，ad_pos_id等于实际pc_showAd的placeID。
+- ad_pre_ecpm为eCPM微单位（单次美元收入×1000×10^6）；旧dang仍为单次收入微美元，Adjust/Facebook单位不变。
+- cash_queue_po_c沿用源表拼写；h5_c去掉源表前导空格。
+- 所有普通业务点统一通过PCAnalytics.event，不重复添加同名点；保留本地TBA尽力提交方式，没有新增网络成功回执保证。
+- 完整逐行对应见同目录pc_analytics_audit.json。

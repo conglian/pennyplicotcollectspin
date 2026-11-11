@@ -30,6 +30,22 @@ class PCQuizQuestion {
 class PCQuizBank {
   PCQuizBank._(this.categories);
 
+  /// 从已加载的题目构建题库，供页面注入或离线预览；正式入口继续读取本地加密题库。
+  factory PCQuizBank.fromQuestions(
+    List<PCQuizQuestion> questions, {
+    String category = 'Fruit',
+  }) {
+    if (questions.isEmpty || !orderedCategories.contains(category)) {
+      throw ArgumentError(
+        'A supported category and non-empty questions are required',
+      );
+    }
+    return PCQuizBank._({
+      for (final name in orderedCategories)
+        name: name == category ? List.unmodifiable(questions) : const [],
+    });
+  }
+
   static const orderedCategories = <String>[
     'Fruit',
     'DailyLife',

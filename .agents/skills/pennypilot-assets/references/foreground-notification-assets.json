@@ -1,0 +1,18 @@
+[
+  {
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_notice_account_icon.png",
+    "width": 156,
+    "height": 156,
+    "original_bytes": 58964,
+    "output_bytes": 56725,
+    "saved_bytes": 2239,
+    "saved_percent": 3.8,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "61c7018309eb508b107c1e7e66668f9421e07dc1a22dfa12cacaf00bb8e59ea0",
+    "node": "250:1430",
+    "scale": 3,
+    "android_copy": "lib/PCThrid/common_notifications-master/android/src/main/res/drawable-nodpi/pc_notice_account_icon.png"
+  }
+]

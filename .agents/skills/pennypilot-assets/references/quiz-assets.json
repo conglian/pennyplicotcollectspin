@@ -1,0 +1,52 @@
+[
+  {
+    "node": "431:540",
+    "scale": 3,
+    "has_alpha_channel": true,
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_quiz_pig_diamond.png",
+    "width": 504,
+    "height": 420,
+    "original_bytes": 359263,
+    "output_bytes": 339117,
+    "saved_bytes": 20146,
+    "saved_percent": 5.61,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "c5ea41ae9c9a033009d7cb24343a23a27aa43a5b4825a03824f7bf0e31f17ee8"
+  },
+  {
+    "node": "431:550",
+    "scale": 3,
+    "has_alpha_channel": true,
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_quiz_pig_gold.png",
+    "width": 504,
+    "height": 420,
+    "original_bytes": 295846,
+    "output_bytes": 280050,
+    "saved_bytes": 15796,
+    "saved_percent": 5.34,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "d5d141d31bbd3404a1b281d8451921f78ab3a0e5b1707bc6df03abcbac4f74e5"
+  },
+  {
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_quiz_cash_reward.png",
+    "width": 600,
+    "height": 276,
+    "original_bytes": 284557,
+    "output_bytes": 271677,
+    "saved_bytes": 12880,
+    "saved_percent": 4.53,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "be15daf60f435126cfa3e9bc2bba77381f32815adc3d3651069bd56b483bb7be",
+    "node": "127:96",
+    "scale": 3,
+    "has_alpha_channel": true,
+    "logical_width": 200,
+    "logical_height": 92
+  }
+]

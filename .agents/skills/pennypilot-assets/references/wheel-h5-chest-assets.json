@@ -1,0 +1,20 @@
+{
+  "file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "page_node": "197:413",
+  "node": "772:286",
+  "purpose": "转盘左上H5宝箱气泡，与右侧Quiz入口同一行",
+  "scale": 3,
+  "logical_size": [64, 64],
+  "path": "assets/images/pc_wheel_bonus_chest.png",
+  "width": 192,
+  "height": 192,
+  "export_method": "exportAsync PNG SCALE 3 contentsOnly true; download_assets导出白底后改原生透明导出",
+  "original_bytes": 77732,
+  "output_bytes": 72247,
+  "saved_bytes": 5485,
+  "saved_percent": 7.06,
+  "lossless_verified": true,
+  "image_data_sha256": "218c042a9a3d5c6df8c98f4dea2dcc600172178bc36177642f102d6f9feca4d8",
+  "has_alpha_channel": true,
+  "top_left_alpha": 0
+}

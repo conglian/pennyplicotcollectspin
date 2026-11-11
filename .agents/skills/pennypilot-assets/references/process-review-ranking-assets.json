@@ -1,0 +1,52 @@
+{
+  "file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "scale": 3,
+  "format": "png",
+  "alpha_validation": "All four native PNGs use RGBA; decoded alpha range is 0..255, preserving transparent edges.",
+  "export": "Figma native exportAsync, contentsOnly: true, transparent",
+  "compression": "import_png.py: IDAT lossless recompression; PNG CRC, decompressed scanlines and non-IDAT chunks verified",
+  "assets": [
+    {
+      "node_id": "211:871",
+      "path": "assets/images/pc_process_rank_glow.png",
+      "logical_size": [360, 200],
+      "pixel_size": [1080, 600],
+      "original_bytes": 831402,
+      "output_bytes": 780135,
+      "image_data_sha256": "573695fb069c5828cc0776863cc35ca664d0304d4229aae12300f1f4d89a14af",
+      "note": "download_assets introduced opaque white; native PNG transferred in verified base64 pieces instead. Decoration only; ranking rows/text/buttons are Flutter widgets."
+    },
+    {
+      "node_id": "224:481",
+      "path": "assets/images/pc_process_review_diamond.png",
+      "logical_size": [56, 56],
+      "pixel_size": [168, 168],
+      "original_bytes": 39696,
+      "output_bytes": 37221,
+      "image_data_sha256": "2e7f37568c878fedf10bbd0ff37322144199d6890b671ee2238a1266c5ed6081"
+    },
+    {
+      "node_id": "225:525",
+      "path": "assets/images/pc_process_review_check.png",
+      "logical_size": [24, 24],
+      "pixel_size": [72, 72],
+      "original_bytes": 5623,
+      "output_bytes": 5437,
+      "image_data_sha256": "2ddf55f216d31351574f7908106901cc4f83a62ee091971edb4065fc33370e6a"
+    },
+    {
+      "node_id": "225:527",
+      "path": "assets/images/pc_process_review_loading.png",
+      "logical_size": [24, 24],
+      "pixel_size": [72, 72],
+      "original_bytes": 1706,
+      "output_bytes": 1609,
+      "image_data_sha256": "20ab6d9170f3c8e2a4cde56e69f01a36d141af2c6336cb019fbe51982dd95b45"
+    }
+  ],
+  "reused": [
+    "pc_btn_bg: green CTA background",
+    "pc_closes_btn: ranking close control",
+    "pc_rank_avatar_01..54: seeded dynamic ranking avatars"
+  ]
+}

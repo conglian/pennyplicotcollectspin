@@ -6,8 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-extension PigWalletSpinearnExtension on String {
+import 'PCDialogCoordinator.dart';
+import 'PCBreathing.dart';
 
+/// Figma领奖弹窗64:274（遮罩65:463）：全屏黑色90%，弹窗本体保持独立底板。
+const pcDialogBackdrop = Color(0xE6000000);
+
+extension PigWalletSpinearnExtension on String {
   String image() {
     return "assets/images/$this.png";
   }
@@ -53,12 +58,11 @@ void printLongString(String text) {
 }
 
 extension ScreenExtension on int {
-
-  String dolasType(){
+  String dolasType() {
     // if (isBrazilianPortuguese(homeKey.currentContext!)){
     //   return 'R\$';
     // } else {
-      return '\$';
+    return '\$';
     // }
   }
 
@@ -67,7 +71,8 @@ extension ScreenExtension on int {
     Locale currentLocale = Localizations.localeOf(context);
 
     // 判断是否是巴西葡萄牙语
-    return currentLocale.languageCode == 'pt' || currentLocale.countryCode == 'BR';
+    return currentLocale.languageCode == 'pt' ||
+        currentLocale.countryCode == 'BR';
   }
 
   double width(BuildContext context) {
@@ -283,180 +288,206 @@ extension TipShow on BuildContext {
     Color? bc,
     double blurSigma = 8, // 👈 模糊强度，可调
   }) {
-    return showGeneralDialog(
+    return PCDialogCoordinator.instance.showRoute(
       context: this,
-      barrierDismissible: false,
-      barrierColor: bc ?? Colors.black.withOpacity(0.7),
-      // 透明度不变
-      transitionDuration: const Duration(milliseconds: 150),
-      transitionBuilder: (ctx, animation, sAnimation, child) {
-        final curvedAnimation = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOut,
-        );
-        final reverseCurvedAnimation = CurvedAnimation(
-          parent: sAnimation,
-          curve: Curves.easeIn,
-        );
+      contentKey: (v.runtimeType, v.key),
+      routeBuilder: () => RawDialogRoute(
+        barrierDismissible: false,
+        barrierColor: bc ?? pcDialogBackdrop,
+        // 透明度不变
+        transitionDuration: const Duration(milliseconds: 150),
+        transitionBuilder: (ctx, animation, sAnimation, child) {
+          final curvedAnimation = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          );
+          final reverseCurvedAnimation = CurvedAnimation(
+            parent: sAnimation,
+            curve: Curves.easeIn,
+          );
 
-        return Stack(
-          children: [
-            /// ✅ 背景模糊层（不影响 barrierColor）
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: Container(
-                color: Colors.transparent, // 必须是透明
+          return Stack(
+            children: [
+              /// ✅ 背景模糊层（不影响 barrierColor）
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                child: Container(
+                  color: Colors.transparent, // 必须是透明
+                ),
               ),
-            ),
 
-            /// 原来的弹窗动画
-            ScaleTransition(
-              scale: Tween<double>(begin: 0.4, end: 1).animate(curvedAnimation),
-              child: FadeTransition(
-                opacity: Tween<double>(
-                  begin: 0.3,
+              /// 原来的弹窗动画
+              ScaleTransition(
+                scale: Tween<double>(
+                  begin: 0.4,
                   end: 1,
                 ).animate(curvedAnimation),
-                child: ScaleTransition(
-                  scale: Tween<double>(
-                    begin: 1,
-                    end: 0.3,
-                  ).animate(reverseCurvedAnimation),
-                  child: FadeTransition(
-                    opacity: Tween<double>(
+                child: FadeTransition(
+                  opacity: Tween<double>(
+                    begin: 0.3,
+                    end: 1,
+                  ).animate(curvedAnimation),
+                  child: ScaleTransition(
+                    scale: Tween<double>(
                       begin: 1,
-                      end: 0.2,
+                      end: 0.3,
                     ).animate(reverseCurvedAnimation),
-                    child: child,
+                    child: FadeTransition(
+                      opacity: Tween<double>(
+                        begin: 1,
+                        end: 0.2,
+                      ).animate(reverseCurvedAnimation),
+                      child: child,
+                    ),
                   ),
                 ),
               ),
+            ],
+          );
+        },
+        pageBuilder: (context, animation, sAnimation) {
+          return PopScope(
+            canPop: false,
+            child: Dialog(
+              insetPadding: EdgeInsets.zero,
+              backgroundColor: Colors.transparent,
+              child: v,
             ),
-          ],
-        );
-      },
-      pageBuilder: (context, animation, sAnimation) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            insetPadding: EdgeInsets.zero,
-            backgroundColor: Colors.transparent,
-            child: v,
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
 extension TipShow2 on BuildContext {
-  Future tipShow2(Widget child, {Color? bc}) {
-    return showGeneralDialog(
+  /// 无毛玻璃弹窗；定位到页面实际组件的引导可关闭内容缩放，保留遮罩淡入。
+  Future tipShow2(
+    Widget child, {
+    Color? bc,
+    bool scaleContent = true,
+    bool Function()? canPresent,
+    Future<void> Function()? onPresented,
+  }) {
+    return PCDialogCoordinator.instance.showRoute(
       context: this,
-      barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 250),
-      pageBuilder: (_, __, ___) {
-        return WillPopScope(
-          onWillPop: () async => false, // 🚫 禁止返回键 & 左滑返回
-          child: _AnimatedDialogWrapper(
-            child: child,
-            background: bc ?? Colors.black.withOpacity(0.7),
-          ),
-        );
-      },
+      contentKey: (child.runtimeType, child.key),
+      canPresent: canPresent,
+      onPresented: onPresented,
+      routeBuilder: () => RawDialogRoute(
+        barrierDismissible: false,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 250),
+        pageBuilder: (_, __, ___) {
+          return PopScope(
+            // 默认阻止退出；内部领奖弹窗仍可收到返回通知并先持久化放弃奖励。
+            canPop: false,
+            child: _AnimatedDialogWrapper(
+              background: bc ?? pcDialogBackdrop,
+              scaleContent: scaleContent,
+              child: child,
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
 extension TipShowAdvanced on BuildContext {
   Future tipShowAdvanced(Widget v, {Color? bc, double blurSigma = 10}) {
-    return showGeneralDialog(
+    return PCDialogCoordinator.instance.showRoute(
       context: this,
-      barrierDismissible: false,
-      barrierColor: bc ?? Colors.black.withOpacity(0.65),
-      transitionDuration: const Duration(milliseconds: 350),
-      transitionBuilder: (ctx, animation, secondaryAnimation, child) {
-        /// ===== 显示动画 =====
-        final showCurve = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack, // 带回弹
-        );
+      contentKey: (v.runtimeType, v.key),
+      routeBuilder: () => RawDialogRoute(
+        barrierDismissible: false,
+        barrierColor: bc ?? pcDialogBackdrop,
+        transitionDuration: const Duration(milliseconds: 350),
+        transitionBuilder: (ctx, animation, secondaryAnimation, child) {
+          /// ===== 显示动画 =====
+          final showCurve = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutBack, // 带回弹
+          );
 
-        final showFade = CurvedAnimation(
-          parent: animation,
-          curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-        );
+          final showFade = CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+          );
 
-        /// ===== 关闭动画 =====
-        final hideCurve = CurvedAnimation(
-          parent: secondaryAnimation,
-          curve: Curves.easeInCubic,
-        );
+          /// ===== 关闭动画 =====
+          final hideCurve = CurvedAnimation(
+            parent: secondaryAnimation,
+            curve: Curves.easeInCubic,
+          );
 
-        final hideFade = CurvedAnimation(
-          parent: secondaryAnimation,
-          curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
-        );
+          final hideFade = CurvedAnimation(
+            parent: secondaryAnimation,
+            curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+          );
 
-        return Stack(
-          children: [
-            /// 背景模糊
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: Container(color: Colors.transparent),
-            ),
+          return Stack(
+            children: [
+              /// 背景模糊
+              BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                child: Container(color: Colors.transparent),
+              ),
 
-            /// 主动画
-            SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1.1),
-                end: Offset.zero,
-              ).animate(showCurve),
-              child: FadeTransition(
-                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(showFade),
-                child: ScaleTransition(
-                  scale: TweenSequence<double>([
-                    /// 关闭时轻微放大再吸入
-                    TweenSequenceItem(
-                      tween: Tween(begin: 1.0, end: 1.05),
-                      weight: 20,
-                    ),
-                    TweenSequenceItem(
-                      tween: Tween(begin: 1.05, end: 0.2),
-                      weight: 80,
-                    ),
-                  ]).animate(hideCurve),
-                  child: FadeTransition(
-                    opacity: Tween<double>(
-                      begin: 1.0,
-                      end: 0.0,
-                    ).animate(hideFade),
-                    child: ScaleTransition(
-                      /// 显示时微缩放到正常大小
-                      scale: Tween<double>(
-                        begin: 0.95,
-                        end: 1.0,
-                      ).animate(showCurve),
-                      child: child,
+              /// 主动画
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 1.1),
+                  end: Offset.zero,
+                ).animate(showCurve),
+                child: FadeTransition(
+                  opacity: Tween<double>(
+                    begin: 0.0,
+                    end: 1.0,
+                  ).animate(showFade),
+                  child: ScaleTransition(
+                    scale: TweenSequence<double>([
+                      /// 关闭时轻微放大再吸入
+                      TweenSequenceItem(
+                        tween: Tween(begin: 1.0, end: 1.05),
+                        weight: 20,
+                      ),
+                      TweenSequenceItem(
+                        tween: Tween(begin: 1.05, end: 0.2),
+                        weight: 80,
+                      ),
+                    ]).animate(hideCurve),
+                    child: FadeTransition(
+                      opacity: Tween<double>(
+                        begin: 1.0,
+                        end: 0.0,
+                      ).animate(hideFade),
+                      child: ScaleTransition(
+                        /// 显示时微缩放到正常大小
+                        scale: Tween<double>(
+                          begin: 0.95,
+                          end: 1.0,
+                        ).animate(showCurve),
+                        child: child,
+                      ),
                     ),
                   ),
                 ),
               ),
+            ],
+          );
+        },
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return PopScope(
+            canPop: false,
+            child: Dialog(
+              insetPadding: EdgeInsets.zero,
+              backgroundColor: Colors.transparent,
+              child: v,
             ),
-          ],
-        );
-      },
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return PopScope(
-          canPop: false,
-          child: Dialog(
-            insetPadding: EdgeInsets.zero,
-            backgroundColor: Colors.transparent,
-            child: v,
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -464,8 +495,13 @@ extension TipShowAdvanced on BuildContext {
 class _AnimatedDialogWrapper extends StatefulWidget {
   final Widget child;
   final Color background;
+  final bool scaleContent;
 
-  const _AnimatedDialogWrapper({required this.child, required this.background});
+  const _AnimatedDialogWrapper({
+    required this.background,
+    required this.scaleContent,
+    required this.child,
+  });
 
   @override
   State<_AnimatedDialogWrapper> createState() => _AnimatedDialogWrapperState();
@@ -527,7 +563,7 @@ class _AnimatedDialogWrapperState extends State<_AnimatedDialogWrapper>
             // 弹框本体
             Center(
               child: Transform.scale(
-                scale: _scale.value,
+                scale: widget.scaleContent ? _scale.value : 1,
                 child: Opacity(
                   opacity: _childOpacity.value,
                   child: Dialog(
@@ -615,12 +651,18 @@ class PCThresholdTrigger {
 class ParticleButton extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
+  final bool enabled;
+
+  /// 仅用于领奖按钮的视觉呼吸，点击区域始终保持原尺寸。
+  final bool breathing;
   final double size; // 粒子范围，默认100
 
   const ParticleButton({
     Key? key,
     required this.child,
     required this.onTap,
+    this.enabled = true,
+    this.breathing = false,
     this.size = 100,
   }) : super(key: key);
 
@@ -657,6 +699,7 @@ class _ParticleButtonState extends State<ParticleButton>
   }
 
   void _handleTap() {
+    if (!widget.enabled) return;
     HapticFeedback.mediumImpact(); // 点击震动
 
     final rnd = Random();
@@ -678,17 +721,23 @@ class _ParticleButtonState extends State<ParticleButton>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: _handleTapDown, // 获取点击位置
-      onTap: _handleTap,
+      behavior: HitTestBehavior.opaque,
+      onTapDown: widget.enabled ? _handleTapDown : null,
+      onTap: widget.enabled ? _handleTap : null,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          widget.child, // 按钮保持原位
+          if (widget.breathing)
+            PCBreathing(enabled: widget.enabled, child: widget.child)
+          else
+            widget.child,
           // 动画结束后移除粒子层，避免透明的 CustomPaint 挡住后续点击。
           if (_controller.isAnimating)
             Positioned.fill(
-              child: CustomPaint(
-                painter: _ParticlePainter(_particles, _controller.value),
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _ParticlePainter(_particles, _controller.value),
+                ),
               ),
             ),
         ],

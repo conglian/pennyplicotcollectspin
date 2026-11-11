@@ -1,0 +1,74 @@
+{
+  "file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "screens": [
+    "214:222",
+    "230:391"
+  ],
+  "assets": [
+    {
+      "node_id": "217:157",
+      "path": "assets/images/pc_pig_upgrade_ribbon.png",
+      "scale": 3,
+      "width": 1080,
+      "height": 240,
+      "original_bytes": 307948,
+      "output_bytes": 286772,
+      "lossless_verified": true,
+      "alpha": true,
+      "top_left_alpha": 0,
+      "export_method": "Figma exportAsync PNG SCALE 3 contentsOnly"
+    },
+    {
+      "node_id": "219:176",
+      "path": "assets/images/pc_pig_upgrade_amount_plate.png",
+      "scale": 3,
+      "width": 379,
+      "height": 144,
+      "original_bytes": 71803,
+      "output_bytes": 69960,
+      "lossless_verified": true,
+      "alpha": true,
+      "top_left_alpha": 0,
+      "export_method": "Figma exportAsync PNG SCALE 3 contentsOnly"
+    },
+    {
+      "node_id": "219:195",
+      "path": "assets/images/pc_pig_upgrade_paypal.png",
+      "scale": 3,
+      "width": 198,
+      "height": 72,
+      "original_bytes": 14394,
+      "output_bytes": 13762,
+      "lossless_verified": true,
+      "alpha": true,
+      "top_left_alpha": 0,
+      "export_method": "Figma exportAsync PNG SCALE 3 contentsOnly"
+    },
+    {
+      "node_id": "219:162",
+      "path": "assets/images/pc_pig_upgrade_diamond.png",
+      "scale": 3,
+      "width": 504,
+      "height": 420,
+      "original_bytes": 367280,
+      "output_bytes": 347598,
+      "lossless_verified": true,
+      "alpha": true,
+      "top_left_alpha": 0,
+      "export_method": "Figma exportAsync PNG SCALE 3 contentsOnly"
+    },
+    {
+      "node_id": "231:463",
+      "path": "assets/images/pc_pig_upgrade_gold.png",
+      "scale": 3,
+      "width": 504,
+      "height": 420,
+      "original_bytes": 309286,
+      "output_bytes": 293084,
+      "lossless_verified": true,
+      "alpha": true,
+      "top_left_alpha": 0,
+      "export_method": "Figma exportAsync PNG SCALE 3 contentsOnly"
+    }
+  ]
+}

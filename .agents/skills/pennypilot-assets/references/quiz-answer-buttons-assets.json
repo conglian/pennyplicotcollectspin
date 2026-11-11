@@ -1,0 +1,60 @@
+{
+  "figma_file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "export_method": "exportAsync(contentsOnly:true)",
+  "assets": [
+    {
+      "path": "assets/images/pc_quiz_answer_correct.png",
+      "width": 804,
+      "height": 192,
+      "original_bytes": 97508,
+      "output_bytes": 91186,
+      "saved_bytes": 6322,
+      "saved_percent": 6.48,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "241980e7e457703b2252be6798a260cc7c224d328d6cf76f62b71ba23e435040",
+      "node_id": "64:164",
+      "export_scale": 3,
+      "export_format": "PNG",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "top_left_rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pixel_sha256": "b65902b47c571b4d65a48c0f96cd0867f908a10e86336667628e4c0a086cd07a"
+    },
+    {
+      "path": "assets/images/pc_quiz_answer_wrong.png",
+      "width": 804,
+      "height": 192,
+      "original_bytes": 97352,
+      "output_bytes": 91121,
+      "saved_bytes": 6231,
+      "saved_percent": 6.4,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "75521c65131fd3027729458fb399b0038d521f735846f08e6843dfd2c82d0c38",
+      "node_id": "184:179",
+      "export_scale": 3,
+      "export_format": "PNG",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "top_left_rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "pixel_sha256": "23ba89566bc3c851b2ca22923c0deae2ae0fab5ee30fec05d034ccbaeb06e156"
+    }
+  ]
+}

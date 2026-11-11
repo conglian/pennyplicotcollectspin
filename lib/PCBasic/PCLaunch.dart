@@ -1,18 +1,29 @@
-import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../PCMainVC/PCHome.dart';
+import '../PCDialog/PCGuide/PCNewUserGuideFlow.dart';
+import '../PCDialog/PCGuide/PCNewUserHomeFlow.dart';
+import '../PCTool/PCNewUserGuideController.dart';
+import '../PCTool/PCReturningUserController.dart';
+import '../PCTool/PCReturningUserHost.dart';
 import '../PCTool/PCAudioUtils.dart';
 import '../PCTool/PCLogger.dart';
+import '../PCTool/PCAnalytics.dart';
+import '../PCTool/PCNoticeHelp.dart';
 import '../PCTool/PCTBAEventTool.dart';
+import '../PCTool/PCInterstitialAdService.dart';
+import '../PCTool/PCDialogCoordinator.dart';
+import '../PCTool/PCLaunchAdController.dart';
 import '../PCTool/pc_LocalProvider.dart';
-import '../PCTool/pc_extension_help.dart';
-import '../PCTool/pc_img.dart';
-import '../PCTool/pc_stroke_text.dart';
+import '../PCTool/pc_ad_manger.dart';
 import 'PCTbaBar.dart' hide homeKey;
+import 'PCLaunchProgressBar.dart';
+import 'PCLaunchView.dart';
+
+export 'PCLaunchProgressBar.dart';
 
 class PCLaunch extends StatefulWidget {
   PCLaunch({super.key});
@@ -21,76 +32,77 @@ class PCLaunch extends StatefulWidget {
   State<PCLaunch> createState() => PCLaunchState();
 }
 
-class PCLaunchState extends State<PCLaunch>
-    with SingleTickerProviderStateMixin {
+class PCLaunchState extends State<PCLaunch> {
+  final _returningUser = PCReturningUserController();
   var _daydateString = '';
-  late final bool _shouldShowColdLaunchAd;
+  late final PCLaunchAdController _launchAds;
   bool _didFinishLaunch = false;
-
-  late AnimationController _logoPulseController;
-
-  late Animation<double> _logoPulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    // 启动瞬间取值，避免首次安装过程中 SDK 写入状态后误展示开屏广告。
-    _shouldShowColdLaunchAd = PCLocalProvider.instance.pc_install_status;
-    if (PCLocalProvider.instance.pc_bg_music) {
-      PCAudioUtils().playBGM();
-    }
-    _logoPulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
+    _launchAds = PCLaunchAdController(
+      loadGuideComplete: () async {
+        final guide = PCNewUserGuideController.instance;
+        await guide.load();
+        return guide.isIntroComplete && guide.isComplete;
+      },
+      requestInterstitial: PCInterstitialAdService.instance.request,
+      continueToApp: pushToGuide,
+      canContinue: () => mounted,
+      waitForStartupPermission: PCNoticeHelp.instance.waitForStartupPermission,
+      prepareApp: _prepareLaunchMetadata,
+      holdPresentation: PCDialogCoordinator.instance.holdPresentation,
+      isNativeAdShowing: () => PCPigAds().isNativeAdShowing,
+      canRequestInterstitial: () {
+        if (PCNoticeHelp.instance.isStartupPermissionRequestPending)
+          return false;
+        final lifecycle = WidgetsBinding.instance.lifecycleState;
+        return lifecycle == null || lifecycle == AppLifecycleState.resumed;
+      },
+      onWaitTimeout: (phase) =>
+          asLog.error('[launch] wait timed out: $phase; continue safely'),
     );
-    _logoPulseAnimation = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1,
-          end: 1.08,
-        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
-        weight: 45,
+    unawaited(
+      PCAudioUtils().initializeForStartup(
+        isNativeAdShowing: () => PCPigAds().isNativeAdShowing,
       ),
-      TweenSequenceItem(tween: ConstantTween<double>(1.08), weight: 10),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1.08,
-          end: 1,
-        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
-        weight: 45,
-      ),
-    ]).animate(_logoPulseController);
-    _logoPulseController.repeat();
-    _setConfigDateInfoData();
+    );
     // PCNoticeHelp().setNoticeStatus();
     Future.delayed(Duration(milliseconds: 1), () {
       pc_getUserCloakConfig();
     });
-    // pc_event_fire(ASTrackEvent.launchPage, {'source_from': 'icon'});
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // PSNumberHelpers().updateBrazilianPortuguese(context);
+      if (mounted) unawaited(_reportLaunchExposure());
     });
+  }
+
+  Future<void> _reportLaunchExposure() async {
+    final source = await PCNoticeHelp.instance.launchSource();
+    PCAnalytics.event('launch_page', {'source_from': source});
   }
 
   void pc_getUserCloakConfig() async {
     try {
+      PCAnalytics.event('cloak_req');
       var responseData = await PCRequestHelpers().getCloak();
-      asLog.info('pigwalletspine Config Result: $responseData');
-      // pc_event_fire("cloak_req", {});
-      // pc_event_fire("cloak_suc", {
-      //   "cloak_user": responseData.toString() == "freshen" ? 1 : 0,
-      // });
+      asLog.info('pigpennyp Config Result: $responseData');
+      // getCloak失败时返回null；失败和空结果不能误记为黑名单成功返回。
+      if (responseData != null && responseData.toString().isNotEmpty) {
+        PCAnalytics.event('cloak_suc', {
+          'cloak_user': responseData.toString() == 'ashland' ? 1 : 0,
+        });
+      }
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       if (prefs.getBool('pc_install_status') == null) {
         prefs.setBool('pc_install_status', true);
       }
       PCLocalProvider.instance.updateBool(
         PCLocalProvider.instance.pc_cloak_statusName,
-        responseData.toString() == "freshen" ? true : false,
+        responseData.toString() == "ashland" ? true : false,
       );
     } catch (e) {
-      asLog.error('pigwalletspine Request Error: $e');
+      asLog.error('pigpennyp Request Error: $e');
       Future.delayed(Duration(seconds: 1), () {
         pc_getUserCloakConfig();
       });
@@ -103,11 +115,11 @@ class PCLaunchState extends State<PCLaunch>
     _daydateString = prefs.getString('pc_day_date') ?? '';
     DateTime today = DateTime.now();
     String formattedDate = DateFormat('yyyy-MM-dd').format(today);
-    prefs.setBool('pc_old_guide', true);
+    await prefs.setBool('pc_old_guide', true);
     if (_daydateString == '') {
-      prefs.setString('pc_day_date', formattedDate);
+      await prefs.setString('pc_day_date', formattedDate);
       // 首次
-      prefs.setBool('pc_first_instll', true);
+      await prefs.setBool('pc_first_instll', true);
     } else {
       if (_daydateString != formattedDate) {
         await PCLocalProvider.instance.updateint(
@@ -115,213 +127,59 @@ class PCLaunchState extends State<PCLaunch>
           0,
         );
         // 隔天
-        prefs.setString('pc_day_date', formattedDate);
-        prefs.setBool('pc_old_guide', false);
+        await prefs.setString('pc_day_date', formattedDate);
+        await prefs.setBool('pc_old_guide', false);
       }
     }
   }
 
   @override
   void dispose() {
-    _logoPulseController.dispose();
+    _launchAds.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          PCImg(
-            name: 'pc_luanch_bg',
-            width: 0.width(context),
-            height: 0.height(context),
-          ),
-          Column(
-            children: [
-              SizedBox(height: 140.h),
-              ScaleTransition(
-                scale: _logoPulseAnimation,
-                child: PCImg(name: 'pc_logo_smail', width: 100, height: 100),
-              ),
-              SizedBox(height: 24.h),
-              PCStrokeText(text: 'PennyPilot:Collect&Spin', size: 20, color: '#FFFFFF'.color(), weight: FontWeight.w700, skWidth: 1, skColor: '#174306'.color()),
-              Spacer(),
-              SizedBox(height: 12.h),
-              PCGradientProgressBar(
-                onCompleted: () {
-                  _finishLaunch();
-                },
-              ),
-              SizedBox(height: 12.h),
-              PCStrokeText(
-                text: "Loading...",
-                size: 14,
-                color: '#FFFFFF'.color(),
-                weight: FontWeight.w900,
-                skWidth: 1,
-                skColor: '#4C0E0E'.color(),
-              ),
-              SizedBox(height: 120.h),
-            ],
-          ),
-        ],
-      ),
-    );
+  Widget build(BuildContext context) =>
+      PCLaunchView(progress: PCGradientProgressBar(onCompleted: _finishLaunch));
+
+  Future<void> _finishLaunch() => _launchAds.finish();
+
+  Future<void> _prepareLaunchMetadata() async {
+    final guide = PCNewUserGuideController.instance;
+    if (!guide.isLoaded) return;
+    // 先读取历史日期，再更新旧启动日期；其失败/超时由启动门禁降级，不能卡在100%。
+    await _returningUser.prepareLaunch(isExistingUser: guide.isComplete);
+    await _setConfigDateInfoData();
   }
 
-  void _finishLaunch() {
-      pushToGuide();
-
-    // ASCardAds().pc_showAd(
-    //   context,
-    //   ASTrackEvent.launchColdInterstitial,
-    //   showDialog: false,
-    //   onCacheResponse: (_) => pushToGuide(),
-    //   adDidClosed: (_) => pushToGuide(),
-    // );
-  }
-
-  void pushToGuide() {
+  Future<void> pushToGuide() async {
+    if (_didFinishLaunch || !mounted) return;
+    _didFinishLaunch = true;
+    final guideController = PCNewUserGuideController.instance;
+    // 引导已在构造时读取；不能在所有兜底之后又等待同一个永不结束的load。
+    // 未知状态交给可重试的引导入口，既离开启动页，也不误跳过新用户流程。
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => PigsBottomExample(key: homeKey)),
-    );
-  }
-}
-
-class PCGradientProgressBar extends StatefulWidget {
-  final VoidCallback? onCompleted; // ✅ 动画完成后的回调
-
-  const PCGradientProgressBar({super.key, this.onCompleted});
-
-  @override
-  State<PCGradientProgressBar> createState() => _PCGradientProgressBarState();
-}
-
-class _PCGradientProgressBarState extends State<PCGradientProgressBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  final double barWidth = 245;
-  final double barHeight = 18;
-  final double progressHeight = 14;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      duration: const Duration(seconds: kDebugMode ? 3 : 12),
-      vsync: this,
-    );
-
-    _animation = Tween<double>(
-      begin: 0,
-      end: 1,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-
-    // ✅ 动画完成回调
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed && widget.onCompleted != null) {
-        widget.onCompleted!();
-      }
-    });
-
-    // 启动动画
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: barWidth,
-      height: barHeight,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // 进度条
-          AnimatedBuilder(
-            animation: _animation,
-            builder: (context, child) {
-              final progressWidth = barWidth * _animation.value;
-              final progressPercent = (_animation.value * 100)
-                  .clamp(0, 100)
-                  .toInt();
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  Positioned(
-                    left: 2,
-                    top: 2,
-                    child: Container(
-                      width: barWidth,
-                      height: progressHeight,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            '#003F00'.color(),
-                            '#002700'.color(),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                    ),
-                  ),
-                  // 渐变进度条
-                  Positioned(
-                    left: 2,
-                    top: 2,
-                    child: Container(
-                      width: max(0, progressWidth - 8),
-                      height: progressHeight,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            '#FFDF2D'.color(),
-                            '#DA5000'.color(),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                    ),
-                  ),
-                  // ✅ 居中显示百分比文字
-                  Center(
-                    child: Text(
-                      '$progressPercent%',
-                      style: TextStyle(
-                        fontFamily: text_fontName,
-                        color: Colors.white,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w700,
-                        shadows: [
-                          Shadow(
-                            blurRadius: 2,
-                            color: Colors.black.withOpacity(0.4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
+      MaterialPageRoute(
+        builder: (routeContext) {
+          if (guideController.isLoaded && guideController.isIntroComplete) {
+            return _buildHome();
+          }
+          return PCNewUserGuideFlow(
+            controller: guideController,
+            onCompleted: () => Navigator.of(
+              routeContext,
+            ).pushReplacement(MaterialPageRoute(builder: (_) => _buildHome())),
+          );
+        },
       ),
     );
   }
+
+  Widget _buildHome() => PCReturningUserHost(
+    controller: _returningUser,
+    onGoEarn: () => PigsTabController.switchTo(1),
+    child: PCNewUserHomeFlow(child: PigsBottomExample(key: homeKey)),
+  );
 }

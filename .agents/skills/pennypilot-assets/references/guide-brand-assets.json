@@ -1,0 +1,322 @@
+{
+  "figma_node_id": "263:937",
+  "assets": [
+    {
+      "path": "assets/images/pc_guide_brand_1_1.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 14340,
+      "output_bytes": 13452,
+      "saved_bytes": 888,
+      "saved_percent": 6.19,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "64dc4a80fc49b6df7acc448db0c1f2874b8dd782cd4b8aba9c3af9f496d33eb2",
+      "name": "pc_guide_brand_1_1",
+      "node_id": "263:938",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_1_2.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 13751,
+      "output_bytes": 12832,
+      "saved_bytes": 919,
+      "saved_percent": 6.68,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "c2ccb3e70c31fa7f35aa8330bfd681442780850ed58b21467613c2b7dfb9439b",
+      "name": "pc_guide_brand_1_2",
+      "node_id": "263:949",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_1_3.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 24174,
+      "output_bytes": 22787,
+      "saved_bytes": 1387,
+      "saved_percent": 5.74,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "08e6a228eb59e4d4ff79226f44b1e40772eaa6da6523a56b03870a17dc3fc37d",
+      "name": "pc_guide_brand_1_3",
+      "node_id": "263:959",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_1_4.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 19294,
+      "output_bytes": 17628,
+      "saved_bytes": 1666,
+      "saved_percent": 8.63,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "6c3699cb701f66c8bf96ef2b2cf94c363b51fd03c98e6af6310c580e4292e238",
+      "name": "pc_guide_brand_1_4",
+      "node_id": "263:969",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_1_5.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 12241,
+      "output_bytes": 11364,
+      "saved_bytes": 877,
+      "saved_percent": 7.16,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "1f041fdad016181f6f1256b9f17d6a08095e0bf2699461cd14e104f893e91c1f",
+      "name": "pc_guide_brand_1_5",
+      "node_id": "263:979",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_2_1.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 19439,
+      "output_bytes": 18198,
+      "saved_bytes": 1241,
+      "saved_percent": 6.38,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "eab19a7793ac8152a7fc606eddf1c326c2cde33aeb8b1016290152b0aec966bd",
+      "name": "pc_guide_brand_2_1",
+      "node_id": "263:944",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_2_2.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 22496,
+      "output_bytes": 20693,
+      "saved_bytes": 1803,
+      "saved_percent": 8.01,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "a05f6979131e2f266d6dc7e29fd7c11e52f29f1fdab7b9f5be15b67a8a6c8eb2",
+      "name": "pc_guide_brand_2_2",
+      "node_id": "263:954",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_2_3.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 15338,
+      "output_bytes": 14427,
+      "saved_bytes": 911,
+      "saved_percent": 5.94,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "82a971e2a0fb22c0112d26692690bdfb0e30540052fb9402f99191d57649e423",
+      "name": "pc_guide_brand_2_3",
+      "node_id": "263:964",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_2_4.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 13818,
+      "output_bytes": 12929,
+      "saved_bytes": 889,
+      "saved_percent": 6.43,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "5ef02d8dbef9f596b224a182870acdf8df4694ab7bdd5542858a06cc0f52be74",
+      "name": "pc_guide_brand_2_4",
+      "node_id": "263:974",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_2_5.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 15442,
+      "output_bytes": 14479,
+      "saved_bytes": 963,
+      "saved_percent": 6.24,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "007e3a2fd67ce13d6988a66ea197b7a54297472ed4ac347de4bc14e2258a1ed3",
+      "name": "pc_guide_brand_2_5",
+      "node_id": "263:1010",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_3_1.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 25709,
+      "output_bytes": 24015,
+      "saved_bytes": 1694,
+      "saved_percent": 6.59,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "e24878590ba36fe82f47c4f7c1277c8514fdc9187097910e15d82e36ea7b24ec",
+      "name": "pc_guide_brand_3_1",
+      "node_id": "263:984",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_3_2.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 21729,
+      "output_bytes": 20244,
+      "saved_bytes": 1485,
+      "saved_percent": 6.83,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "3ec2268d9d10ad92c293345e11b1077fb64733e1e979e3014ef4c08cdfad18b6",
+      "name": "pc_guide_brand_3_2",
+      "node_id": "263:990",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_3_3.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 26747,
+      "output_bytes": 25039,
+      "saved_bytes": 1708,
+      "saved_percent": 6.39,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "d69f725493f86d6ded01a58fa00408df43bb4f9daccd03b0e03513029f61c4e3",
+      "name": "pc_guide_brand_3_3",
+      "node_id": "263:995",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_3_4.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 18352,
+      "output_bytes": 17151,
+      "saved_bytes": 1201,
+      "saved_percent": 6.54,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "475038b0dbcb65f87393aa7f8a4c26ca2749433a62a1b2c77ad2fdbf5b11466c",
+      "name": "pc_guide_brand_3_4",
+      "node_id": "263:1000",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    },
+    {
+      "path": "assets/images/pc_guide_brand_3_5.png",
+      "width": 217,
+      "height": 141,
+      "original_bytes": 22030,
+      "output_bytes": 20549,
+      "saved_bytes": 1481,
+      "saved_percent": 6.72,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "6d12645ee10e86cb6f08c27bc3f39641a69250b6eefc23c782bc5b7240534f77",
+      "name": "pc_guide_brand_3_5",
+      "node_id": "263:1005",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_comparison_verified": true
+    }
+  ],
+  "parent_node_id": "263:936",
+  "parent_opacity": 0.78
+}

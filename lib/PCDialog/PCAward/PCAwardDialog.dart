@@ -1,558 +1,585 @@
+import 'dart:async';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 
+import '../../PCTool/PCAdaptiveLayout.dart';
+import '../../PCTool/PCAnalytics.dart';
+import '../../PCTool/PCInterstitialAdService.dart';
+import '../../PCTool/PCNumberManager.dart';
+import '../../PCTool/PCQuizConfig.dart';
+import '../../PCTool/PCRewardedAdService.dart';
 import '../../PCTool/pc_LocalProvider.dart';
 import '../../PCTool/pc_extension_help.dart';
 import '../../PCTool/pc_img.dart';
 import '../../PCTool/pc_stroke_text.dart';
 import '../../PCTool/pc_text.dart';
+import '../PCOther/PCAdLoadingFailedDialog.dart';
+import '../PCOther/PCDialogTool.dart';
+export 'PCAwardOpenDialog.dart';
 
-class PCAwardDialog extends StatelessWidget {
-  final double award;
+/// 领奖按钮的广告规则；首页新版气泡使用概率插屏，其余业务默认真实激励。
+enum PCAwardClaimAdPolicy { rewarded, probabilityInterstitial }
 
-  const PCAwardDialog({super.key, required this.award});
-
-  @override
-  Widget build(BuildContext context) {
-    final double balance = PCLocalProvider.instance.pc_dollar_number;
-    return _WithdrawAwardView(award: award, balance: balance);
-  }
-}
-
-class PCAwardOpenDialog extends StatelessWidget {
-  final double award;
-
-  const PCAwardOpenDialog({super.key, required this.award});
-
-  @override
-  Widget build(BuildContext context) {
-    final double balance = PCLocalProvider.instance.pc_dollar_number;
-    return _EarnedAwardView(award: award, balance: balance);
-  }
-}
-
-class _EarnedAwardView extends StatelessWidget {
-  final double award;
-  final double balance;
-
-  const _EarnedAwardView({required this.award, required this.balance});
-
-  String _compactMoney(double value) {
-    final double safeValue = value.abs() < 0.005 ? 0 : value;
-    if (safeValue == safeValue.roundToDouble()) {
-      return safeValue.toInt().toString();
-    }
-    return safeValue
-        .toStringAsFixed(2)
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final Size mediaSize = MediaQuery.sizeOf(context);
-        final double availableWidth = constraints.hasBoundedWidth
-            ? constraints.maxWidth
-            : mediaSize.width;
-        final double availableHeight = constraints.hasBoundedHeight
-            ? constraints.maxHeight
-            : mediaSize.height;
-        const double designWidth = 360;
-        const double designHeight = 584;
-        final double scale = math.min(
-          availableWidth / designWidth,
-          availableHeight / designHeight,
-        );
-        final double contentWidth = designWidth * scale;
-        final double contentHeight = designHeight * scale;
-
-        return SizedBox(
-          width: availableWidth,
-          height: availableHeight,
-          child: Stack(
-            children: [
-              Positioned(
-                left: (availableWidth - contentWidth) * 0.5,
-                top: 0,
-                width: contentWidth,
-                height: contentHeight,
-                child: Transform.scale(
-                  scale: scale,
-                  alignment: Alignment.topLeft,
-                  child: SizedBox(
-                    width: designWidth,
-                    height: designHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          left: 8,
-                          top: 200,
-                          child: Container(
-                            width: 344,
-                            height: 384,
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.86),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: 230,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              const PCText(
-                                text: 'My Account: ',
-                                size: 28,
-                                color: Colors.white,
-                                weight: FontWeight.w800,
-                              ),
-                              PCStrokeText(
-                                text: '\$${_compactMoney(balance)}',
-                                size: 38,
-                                color: '#FFD900'.color(),
-                                weight: FontWeight.w900,
-                                skWidth: 2,
-                                skColor: '#446300'.color(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Positioned(
-                          left: 12,
-                          top: 300,
-                          child: PCImg(
-                            name: 'pc_awards_tong_center',
-                            width: 336,
-                            height: 284,
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: 324,
-                          child: PCStrokeText(
-                            text: 'Earned \$${_compactMoney(award)}',
-                            size: 21,
-                            color: Colors.white,
-                            weight: FontWeight.w800,
-                            skWidth: 1.5,
-                            skColor: '#355E00'.color(),
-                          ),
-                        ),
-                        const Positioned(
-                          left: 96,
-                          top: 366,
-                          child: PCImg(
-                            name: 'pc_big_icon_0',
-                            width: 168,
-                            height: 140,
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: 521,
-                          child: PCStrokeText(
-                            text: '+\$${award.toStringAsFixed(1)}',
-                            size: 31,
-                            color: '#FFCA00'.color(),
-                            weight: FontWeight.w900,
-                            skWidth: 2,
-                            skColor: '#385500'.color(),
-                          ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          top: -8,
-                          child: IgnorePointer(
-                            child: Lottie.asset(
-                              'wallter_open.zip'.files(),
-                              width: 360,
-                              height: 360,
-                              fit: BoxFit.fill,
-                              repeat: true,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _WithdrawAwardView extends StatelessWidget {
-  final double award;
-  final double balance;
-
-  const _WithdrawAwardView({required this.award, required this.balance});
-
-  String _formatMoney(double value) {
-    final double safeValue = value.abs() < 0.005 ? 0 : value;
-    if (safeValue == safeValue.roundToDouble()) {
-      return safeValue.toInt().toString();
-    }
-    return safeValue
-        .toStringAsFixed(2)
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceFirst(RegExp(r'\.$'), '');
-  }
-
-  void _close(BuildContext context) {
-    final NavigatorState navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double remaining = math.max(0, 100 - balance);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final Size mediaSize = MediaQuery.sizeOf(context);
-        final EdgeInsets safePadding = MediaQuery.paddingOf(context);
-        final double availableWidth = constraints.hasBoundedWidth
-            ? constraints.maxWidth
-            : mediaSize.width;
-        final double availableHeight = constraints.hasBoundedHeight
-            ? constraints.maxHeight
-            : mediaSize.height;
-        const double contentWidth = 360;
-        const double contentHeight = 602;
-        final double contentTop = math.max(
-          safePadding.top + 8,
-          availableHeight * (80 / 812),
-        );
-        final double widthScale = math.max(
-          0.1,
-          (availableWidth - 16) / contentWidth,
-        );
-        final double heightScale = math.max(
-          0.1,
-          (availableHeight - contentTop - safePadding.bottom - 12) /
-              contentHeight,
-        );
-        final double scale = math.min(math.min(widthScale, heightScale), 1.4);
-        final double scaledWidth = contentWidth * scale;
-        final double scaledHeight = contentHeight * scale;
-
-        return SizedBox(
-          width: availableWidth,
-          height: availableHeight,
-          child: Stack(
-            children: [
-              Positioned(
-                left: (availableWidth - scaledWidth) * 0.5,
-                top: contentTop,
-                width: scaledWidth,
-                height: scaledHeight,
-                child: Transform.scale(
-                  scale: scale,
-                  alignment: Alignment.topLeft,
-                  child: SizedBox(
-                    width: contentWidth,
-                    height: contentHeight,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          left: 20,
-                          top: 110,
-                          child: _WithdrawPanel(
-                            balance: balance,
-                            remaining: remaining,
-                            award: award,
-                            formatMoney: _formatMoney,
-                            onClose: () => _close(context),
-                          ),
-                        ),
-                        const Positioned(
-                          left: 0,
-                          top: 0,
-                          child: PCImg(
-                            name: 'pc_awards_top',
-                            width: 360,
-                            height: 80,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _WithdrawPanel extends StatelessWidget {
-  final double balance;
-  final double remaining;
-  final double award;
-  final String Function(double value) formatMoney;
-  final VoidCallback onClose;
-
-  const _WithdrawPanel({
-    required this.balance,
-    required this.remaining,
+/// 奖励领取弹窗（Left To Withdraw / Claim），兼容原来的新用户引导。
+/// [reward] 区分纸钞、钻石、金砖；Claim 按 [claimAdPolicy] 完成后执行 [onClaim]。
+/// 默认 Claim 需要真实激励；新版首页 Claim 无 AD 角标，概率插屏不作为领奖门槛。
+/// 关闭按配置概率播放插屏；答题和转盘通过 [onAbandon] 先放弃当前待奖。
+/// 激励失败也先清理待奖，再切换同一路由的失败面板。
+class PCAwardDialog extends StatefulWidget {
+  const PCAwardDialog({
+    super.key,
     required this.award,
-    required this.formatMoney,
-    required this.onClose,
+    this.withdrawalTarget = 100,
+    this.reward,
+    this.onClaim,
+    this.onClaimAdFailed,
+    this.onAbandon,
+    this.balance,
+    this.paymentAsset = 'pc_act_0',
+    this.remainingCollectible = 0,
+    this.showAdBadge = true,
+    this.adsEnabled = true,
+    this.claimAdPolicy = PCAwardClaimAdPolicy.rewarded,
+    this.claimAdPlacement = 'rv',
+    this.claimInterstitialAdPlacement = 'int',
+    this.closeAdPlacement = 'int',
+    this.analyticsSource,
   });
 
+  /// 普通答题/转盘的事件来源；首页及新手不传，避免混入普通激励弹窗。
+  final String? analyticsSource;
+  final double award;
+
+  /// 当前配置的首档提现门槛；Only文案显示此值减去美元余额后的差额。
+  final double withdrawalTarget;
+  final PCQuizReward? reward;
+  final Future<bool> Function()? onClaim;
+
+  /// 兼容旧调用的激励失败清理；先完成持久化，再显示原路由失败面板。
+  final Future<void> Function()? onClaimAdFailed;
+
+  /// 用户关闭或激励失败时放弃这一笔待奖，调用方须绑定当前 rewardId。
+  /// 同一弹窗仅执行一次；关闭插屏开始前、路由退出前均等待持久化完成。
+  /// 首页及新用户未传入时保持原有奖励策略，成功领取不会调用此回调。
+  final Future<void> Function()? onAbandon;
+  final double? balance;
+  final String paymentAsset;
+
+  /// 保留现有调用兼容；Only文案统一展示美元差额，不展示剩余资源说明。
+  final double remainingCollectible;
+
+  /// 新用户三题引导设为 false：Claim直接结算，关闭直接退出，均不播放广告。
+  final bool adsEnabled;
+  final PCAwardClaimAdPolicy claimAdPolicy;
+  final String claimAdPlacement;
+  final String claimInterstitialAdPlacement;
+  final String closeAdPlacement;
+
+  /// 激励策略下控制 AD 角标；首页概率插屏策略始终不显示角标。
+  /// 单独隐藏角标不会跳过默认策略所需的激励广告。
+  final bool showAdBadge;
   @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 320,
-      height: 492,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned.fill(
-            child: PCImg(name: 'pc_awards_bg', width: 320, height: 492),
-          ),
-          Positioned(
-            left: 16,
-            top: 15,
-            child: _BalanceHeader(balanceText: formatMoney(balance)),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 76,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const PCText(
-                  text: 'Only ',
-                  size: 20,
-                  color: Colors.white,
-                  weight: FontWeight.w800,
-                ),
-                PCText(
-                  text: '\$${formatMoney(remaining)}',
-                  size: 22,
-                  color: '#FFE500'.color(),
-                  weight: FontWeight.w900,
-                ),
-                const PCText(
-                  text: ' Left To Withdraw',
-                  size: 20,
-                  color: Colors.white,
-                  weight: FontWeight.w800,
-                ),
-              ],
-            ),
-          ),
-          const Positioned(left: 90, top: 101, child: _RotatingAwardLight()),
-          const Positioned(
-            left: 58,
-            top: 126,
-            child: PCImg(name: 'pc_dollars_icon', width: 204, height: 84),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 247,
-            child: PCStrokeText(
-              text: '+\$${formatMoney(award)}',
-              size: 34,
-              color: '#FFB800'.color(),
-              weight: FontWeight.w900,
-              skWidth: 2,
-              skColor: '#4B4B00'.color(),
-            ),
-          ),
-          const Positioned(
-            left: 60,
-            top: 293,
-            child: _AwardCheckRow(text: 'Ensure safety'),
-          ),
-          const Positioned(
-            left: 60,
-            top: 325,
-            child: _AwardCheckRow(text: 'Arrived within 24 hours'),
-          ),
-          const Positioned(
-            left: 60,
-            top: 357,
-            child: _AwardCheckRow(text: '1M+ user trusted'),
-          ),
-          Positioned(
-            left: 26,
-            top: 404,
-            child: ParticleButton(onTap: onClose, child: const _ClaimButton()),
-          ),
-          Positioned(
-            right: -5,
-            top: -6,
-            child: ParticleButton(
-              onTap: onClose,
-              child: const PCImg(name: 'pc_closes_btn', width: 24, height: 24),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<PCAwardDialog> createState() => _PCAwardDialogState();
 }
 
-class _RotatingAwardLight extends StatefulWidget {
-  const _RotatingAwardLight();
-
-  @override
-  State<_RotatingAwardLight> createState() => _RotatingAwardLightState();
-}
-
-class _RotatingAwardLightState extends State<_RotatingAwardLight>
+class _PCAwardDialogState extends State<PCAwardDialog>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final AnimationController _light = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  );
+  bool _claiming = false;
+  bool _closing = false;
+  bool _adFailed = false;
+  Future<void>? _abandonment;
+  bool get _busy => _claiming || _closing;
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _light.stop();
+    } else if (!_light.isAnimating) {
+      _light.repeat();
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _light.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return RotationTransition(
-      turns: _controller,
-      child: const PCImg(name: 'pc_guang_s', width: 140, height: 140),
-    );
+  Future<void> _claim() async {
+    if (_busy || _adFailed) return;
+    final route = ModalRoute.of(context);
+    if (route?.isCurrent != true) return;
+    final navigator = Navigator.of(context);
+    _track('double_pop_c', withSource: true);
+    setState(() => _claiming = true);
+    try {
+      final outcome = await _completeClaimAd(route);
+      if (!outcome.isSuccess) {
+        if (widget.adsEnabled &&
+            widget.claimAdPolicy == PCAwardClaimAdPolicy.rewarded) {
+          // 即使用户已切页或路由退出，也清理原奖励，迟到回调不能让待奖复活。
+          try {
+            await _abandonReward();
+            if (outcome == PCAdOutcome.failed) {
+              await widget.onClaimAdFailed?.call();
+            }
+          } catch (error) {
+            debugPrint('Reward ad failure cleanup: $error');
+          }
+        }
+        if (!mounted || route?.isCurrent != true) return;
+        if (outcome == PCAdOutcome.cancelled) {
+          // 正常取消不发奖，退出本次待奖；不再补播关闭插屏或提示播放失败。
+          _dismiss(route, navigator, false);
+          return;
+        }
+        setState(() => _adFailed = true);
+        return;
+      }
+      if (!mounted || route?.isCurrent != true) return;
+      final claimed = await widget.onClaim?.call() ?? true;
+      if (claimed) _dismiss(route, navigator, true);
+    } catch (_) {
+      if (mounted && route?.isCurrent == true) {
+        PCDialogTool.toast(
+          context,
+          'Unable to save progress. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
   }
-}
 
-class _BalanceHeader extends StatelessWidget {
-  final String balanceText;
+  Future<PCAdOutcome> _completeClaimAd(Route<dynamic>? route) async {
+    if (!widget.adsEnabled) return PCAdOutcome.success;
+    if (widget.claimAdPolicy == PCAwardClaimAdPolicy.rewarded) {
+      return PCRewardedAdService.instance.requestOutcome(
+        widget.claimAdPlacement,
+      );
+    }
+    try {
+      final numbers = PCNumberHelpers();
+      await numbers.pc_initNumberModel();
+      if (!mounted || route?.isCurrent != true) return PCAdOutcome.cancelled;
+      if (numbers.pc_checkProbability()) {
+        // 首页入口已满足领奖条件；插屏失败或未就绪不扣留这笔奖励。
+        // 等待原生广告完整退出，保持领奖和关闭互斥及本地弹窗串行。
+        await PCInterstitialAdService.instance.requestOutcome(
+          widget.claimInterstitialAdPlacement,
+        );
+      }
+    } catch (error) {
+      debugPrint('Reward claim interstitial: $error');
+    }
+    return PCAdOutcome.success;
+  }
 
-  const _BalanceHeader({required this.balanceText});
+  Future<void> _close() async {
+    if (_busy) return;
+    final route = ModalRoute.of(context);
+    if (route?.isCurrent != true) return;
+    final navigator = Navigator.of(context);
+    if (!_adFailed) _track('double_pop_close');
+    setState(() => _closing = true);
+    try {
+      // 先落盘放弃；原生插屏期间进程退出也不能恢复已关闭的奖励。
+      await _abandonReward();
+      if (_adFailed || !widget.adsEnabled) return;
+      final numbers = PCNumberHelpers();
+      await numbers.pc_initNumberModel();
+      if (!mounted || route?.isCurrent != true) return;
+      if (numbers.pc_checkProbability()) {
+        // 保留当前弹窗的展示权到原生插屏关闭，避免其他本地弹窗抢先覆盖。
+        await PCInterstitialAdService.instance.request(widget.closeAdPlacement);
+      }
+    } catch (error) {
+      debugPrint('Reward close ad: $error');
+    } finally {
+      _dismiss(route, navigator, false);
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 288,
-      height: 47,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: ['#FFFDF0'.color(), '#FFF09B'.color()],
-        ),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        children: [
-          const PCImg(name: 'pc_act_0', width: 36, height: 36),
-          const SizedBox(width: 4),
-          PCText(
-            text: 'Payment',
-            size: 16,
-            color: '#0046A0'.color(),
-            weight: FontWeight.w700,
+  Future<void> _abandonReward() =>
+      _abandonment ??= Future<void>.sync(() => widget.onAbandon?.call());
+
+  void _dismiss(Route<dynamic>? route, NavigatorState navigator, bool result) {
+    if (!mounted ||
+        !navigator.mounted ||
+        route == null ||
+        route.navigator != navigator ||
+        !route.isActive) {
+      return;
+    }
+    // 只退出自己的奖励路由，原生广告的迟到回调不能pop后来打开的页面。
+    if (route.isCurrent) {
+      navigator.pop(result);
+    } else {
+      navigator.removeRoute(route, result);
+    }
+  }
+
+  Widget _text(
+    String text,
+    double size, {
+    Color color = Colors.white,
+    int lines = 1,
+  }) => PCText(
+    text: text,
+    size: size,
+    color: color,
+    weight: FontWeight.w700,
+    maxLines: lines,
+    align: TextAlign.center,
+  );
+
+  Widget _withdrawalSummary(double balance) {
+    // 三阶段共用设计句式，金额按同一份美元余额计算，不使用钻石或金砖数量。
+    final remaining = math.max(0.0, widget.withdrawalTarget - balance);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: PCText(
+        key: const ValueKey('pcAwardWithdrawalSummary'),
+        text: 'Only ',
+        size: 20,
+        color: Colors.white,
+        weight: FontWeight.w700,
+        height: 32 / 20,
+        align: TextAlign.center,
+        spans: [
+          TextSpan(
+            text: '\$${PCQuizReward.format(remaining)}',
+            style: TextStyle(
+              foreground: Paint()
+                ..shader = const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [.1875, .796875],
+                  colors: [Color(0xFFFFDF28), Color(0xFFFFA11E)],
+                ).createShader(const Rect.fromLTWH(0, 0, 1, 32)),
+            ),
           ),
-          const SizedBox(width: 4),
-          const PCImg(name: 'pc_dui_1_icon', width: 12, height: 12),
-          const Spacer(),
-          PCText(
-            text: 'My Cash: ',
-            size: 12,
-            color: '#6F4B1D'.color(),
-            weight: FontWeight.w700,
-          ),
-          PCText(
-            text: '\$$balanceText',
-            size: 18,
-            color: '#00A51A'.color(),
-            weight: FontWeight.w900,
-          ),
+          const TextSpan(text: ' Left To Withdraw'),
         ],
       ),
     );
   }
-}
 
-class _AwardCheckRow extends StatelessWidget {
-  final String text;
-
-  const _AwardCheckRow({required this.text});
+  void _track(String event, {bool withSource = false}) {
+    final source = widget.analyticsSource;
+    if (source != 'quiz' && source != 'wheel') return;
+    PCAnalytics.event(event, withSource ? {'pop_from': source} : const {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const PCImg(name: 'pc_dui_0_icon', width: 24, height: 24),
-        const SizedBox(width: 12),
-        PCText(
-          text: text,
-          size: 16,
-          color: Colors.white,
-          weight: FontWeight.w500,
-        ),
-      ],
+    final dialog = _buildDialog(context);
+    final source = widget.analyticsSource;
+    if (source != 'quiz' && source != 'wheel') return dialog;
+    return PCAnalyticsExposure(
+      event: 'double_pop',
+      parameters: {'pop_from': source},
+      child: dialog,
     );
   }
-}
 
-class _ClaimButton extends StatelessWidget {
-  const _ClaimButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 268,
-      height: 64,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          const Positioned.fill(
-            child: PCImg(name: 'pc_btn_bg', width: 268, height: 64),
-          ),
-          const PCStrokeText(
-            text: 'Claim',
-            size: 27,
-            color: Colors.white,
-            weight: FontWeight.w800,
-            skWidth: 3,
-            skColor: Color(0xFF173600),
-          ),
-          const Positioned(
-            right: 0,
-            top: 0,
-            child: PCImg(name: 'pc_ad_icon', width: 20, height: 20),
-          ),
-        ],
-      ),
+  Widget _buildDialog(BuildContext context) {
+    final balance = widget.balance ?? PCLocalProvider.instance.pc_dollar_number;
+    final type = widget.reward?.type ?? PCQuizRewardType.cash;
+    final collectible = type != PCQuizRewardType.cash;
+    final amount = PCQuizReward.format(widget.award);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_close());
+      },
+      child: _adFailed
+          ? PCAdLoadingFailedDialog(onClose: () => unawaited(_close()))
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final padding = MediaQuery.paddingOf(context);
+                final top = math.max(
+                  padding.top + 8,
+                  constraints.maxHeight * 80 / 812,
+                );
+                final scale = PCAdaptiveLayout.fitScale(
+                  width: constraints.maxWidth - 16,
+                  height: constraints.maxHeight - top - padding.bottom - 12,
+                  designHeight: 602,
+                );
+                return SizedBox.expand(
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: (constraints.maxWidth - 360 * scale) / 2,
+                        top: top,
+                        width: 360 * scale,
+                        height: 602 * scale,
+                        child: FittedBox(
+                          child: SizedBox(
+                            width: 360,
+                            height: 602,
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 20,
+                                  top: 110,
+                                  width: 320,
+                                  height: 492,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      const Positioned.fill(
+                                        child: PCImg(name: 'pc_awards_bg'),
+                                      ),
+                                      Positioned(
+                                        left: 16,
+                                        top: 15,
+                                        width: 288,
+                                        height: 47,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 9,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              7,
+                                            ),
+                                            gradient: const LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                Color(0xFFFFFDF0),
+                                                Color(0xFFFFF09B),
+                                              ],
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              PCImg(
+                                                name: widget.paymentAsset,
+                                                width: 36,
+                                                height: 36,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  child: _text(
+                                                    'Payment',
+                                                    16,
+                                                    color: const Color(
+                                                      0xFF0046A0,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const PCImg(
+                                                name: 'pc_dui_1_icon',
+                                                width: 12,
+                                                height: 12,
+                                              ),
+                                              const Spacer(),
+                                              _text(
+                                                'My Cash: ',
+                                                12,
+                                                color: const Color(0xFF6F4B1D),
+                                              ),
+                                              Flexible(
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  child: _text(
+                                                    '\$${PCQuizReward.format(balance)}',
+                                                    18,
+                                                    color: const Color(
+                                                      0xFF00A51A,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 12,
+                                        right: 12,
+                                        top: 72,
+                                        height: 32,
+                                        child: _withdrawalSummary(balance),
+                                      ),
+                                      Positioned(
+                                        left: 90,
+                                        top: 104,
+                                        width: 140,
+                                        height: 140,
+                                        child: RotationTransition(
+                                          turns: _light,
+                                          child: const PCImg(
+                                            name: 'pc_guang_s',
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: collectible ? 110 : 60,
+                                        top: collectible ? 124 : 128,
+                                        width: collectible ? 100 : 200,
+                                        height: collectible ? 100 : 92,
+                                        // 主图使用100逻辑像素对应的300px原生图，不能放大48px顶部图标。
+                                        child: PCImg(
+                                          key: const ValueKey('pcAwardArtwork'),
+                                          name: switch (type) {
+                                            PCQuizRewardType.cash =>
+                                              'pc_quiz_cash_reward',
+                                            PCQuizRewardType.diamond =>
+                                              'pc_award_diamond',
+                                            PCQuizRewardType.gold =>
+                                              'pc_award_gold',
+                                          },
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 0,
+                                        right: 0,
+                                        top: 248,
+                                        child: PCStrokeText(
+                                          text: collectible
+                                              ? '×$amount'
+                                              : '+\$$amount',
+                                          size: 32,
+                                          color: const Color(0xFFFFB800),
+                                          weight: FontWeight.w900,
+                                          skWidth: 2,
+                                          skColor: const Color(0xFF4B4B00),
+                                        ),
+                                      ),
+                                      for (final row in [
+                                        (296.0, 'Ensure safety'),
+                                        (328.0, 'Arrived within 24 hours'),
+                                        (360.0, '1M+ user trusted'),
+                                      ])
+                                        Positioned(
+                                          left: 60,
+                                          right: 16,
+                                          top: row.$1,
+                                          height: 24,
+                                          child: Row(
+                                            children: [
+                                              const PCImg(
+                                                name: 'pc_dui_0_icon',
+                                                width: 24,
+                                                height: 24,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: PCText(
+                                                  text: row.$2,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                  weight: FontWeight.w500,
+                                                  height: 1.5,
+                                                  align: TextAlign.left,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      Positioned(
+                                        left: 26,
+                                        top: 404,
+                                        width: 268,
+                                        height: 64,
+                                        child: IgnorePointer(
+                                          ignoring: _busy,
+                                          child: ParticleButton(
+                                            key: const ValueKey(
+                                              'pcQuizClaimReward',
+                                            ),
+                                            onTap: _claim,
+                                            breathing: !_busy,
+                                            child: SizedBox.expand(
+                                              child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  const Positioned.fill(
+                                                    child: PCImg(
+                                                      name: 'pc_btn_bg',
+                                                    ),
+                                                  ),
+                                                  PCStrokeText(
+                                                    text: _claiming
+                                                        ? 'Claiming...'
+                                                        : 'Claim',
+                                                    size: 27,
+                                                    color: Colors.white,
+                                                    weight: FontWeight.w800,
+                                                    skWidth: 3,
+                                                    skColor: const Color(
+                                                      0xFF173600,
+                                                    ),
+                                                  ),
+                                                  if (widget.showAdBadge &&
+                                                      widget.claimAdPolicy ==
+                                                          PCAwardClaimAdPolicy
+                                                              .rewarded)
+                                                    const Positioned(
+                                                      right: 0,
+                                                      top: 0,
+                                                      child: PCImg(
+                                                        name: 'pc_ad_icon',
+                                                        width: 20,
+                                                        height: 20,
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        right: -5,
+                                        top: -6,
+                                        child: ParticleButton(
+                                          key: const ValueKey(
+                                            'pcQuizCloseReward',
+                                          ),
+                                          enabled: !_busy,
+                                          onTap: _close,
+                                          child: const PCImg(
+                                            name: 'pc_closes_btn',
+                                            width: 24,
+                                            height: 24,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Positioned(
+                                  left: 0,
+                                  top: 0,
+                                  width: 360,
+                                  height: 80,
+                                  child: PCImg(name: 'pc_awards_top'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }

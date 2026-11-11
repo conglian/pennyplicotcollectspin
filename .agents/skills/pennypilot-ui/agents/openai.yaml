@@ -1,0 +1,4 @@
+interface:
+  display_name: "PennyPilot UI 开发"
+  short_description: "按 Figma 实现 PennyPilot Flutter 页面及独立弹窗"
+  default_prompt: "使用 $pennypilot-ui，按照指定 Figma 节点实现或调整这个项目的 Flutter 页面或弹窗。"

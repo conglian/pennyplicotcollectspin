@@ -1,33 +1,161 @@
+import '../PCTool/PCAnalytics.dart';
+import '../PCTool/PCAdaptiveLayout.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:pennypilotcollectspin/PCBasic/PCTbaBar.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_stroke_text.dart';
 import 'package:provider/provider.dart';
 import '../PCTool/PCPigWheelPage.dart';
+import '../PCTool/PCWheelController.dart';
+import '../PCTool/PCWheelBonusChest.dart';
+import '../PCTool/PCWithdrawalController.dart';
+import '../PCTool/PCQuizConfig.dart';
+import '../PCTool/PCQuizRewardAnimation.dart';
+import '../PCTool/PCPigUpgradeController.dart';
+import '../PCTool/PCDialogCoordinator.dart';
+import '../PCTool/PCNewUserGuideController.dart';
+import '../PCDialog/PCAward/PCAwardDialog.dart';
+import '../PCDialog/PCOther/PCDialogTool.dart';
+import '../PCDialog/PCOther/PCWheelNoChanceDialog.dart';
 import '../PCTool/pc_LocalProvider.dart';
+import '../PCTool/PCBalanceHeader.dart';
 import '../PCTool/pc_extension_help.dart';
 import '../PCTool/pc_img.dart';
-import '../PCTool/pc_text.dart';
+import '../PCTool/pc_shou_icon.dart';
+import '../PCTool/pc_WebKitView.dart';
 
 final GlobalKey<PCWheelState> homeKey = GlobalKey<PCWheelState>();
 
 class PCWheel extends StatefulWidget {
-  PCWheel({super.key});
+  const PCWheel({super.key, this.controller, this.active});
+  final PCWheelController? controller;
+  final bool? active;
 
   @override
   State<PCWheel> createState() => PCWheelState();
 }
 
-class PCWheelState extends State<PCWheel> with SingleTickerProviderStateMixin {
+class PCWheelState extends State<PCWheel> with WidgetsBindingObserver {
+  final _wheelKey = GlobalKey<PCPigWheelPageState>();
+  final _rewardTarget = GlobalKey();
+  late final PCWheelController _flow;
+  bool _ready = false, _handling = false, _dialogOpen = false;
+  bool _foreground = true, _wasActive = false;
+  bool _openingBonus = false;
+  int _rewardVisit = 0;
+  PCQuizReward? _effect;
+  VoidCallback? _releaseUpgrade;
+  VoidCallback? _releaseRewardPresentation;
+  Timer? _dailyRefreshTimer;
+  bool get _busy => _handling || _dialogOpen || _effect != null;
+  bool get _active =>
+      _ready &&
+      _foreground &&
+      !PCPigUpgradeController.instance.isPresenting &&
+      (widget.active ??
+          (PigsTabController.currentIndex.value == 2 &&
+              PCNewUserGuideController.instance.isComplete));
+
   @override
   void initState() {
     super.initState();
+    _flow =
+        widget.controller ??
+        PCWheelController(
+          onSync: PCLocalProvider.instance.init,
+          onWithdrawalSpin: (id) async {
+            await PCWithdrawalController.instance.recordEvent(
+              PCWithdrawalEventKind.spin,
+              eventId: id,
+            );
+          },
+        );
+    _flow.addListener(_flowChanged);
+    WidgetsBinding.instance.addObserver(this);
+    PigsTabController.currentIndex.addListener(_activityChanged);
+    PCPigUpgradeController.instance.addListener(_activityChanged);
+    unawaited(_load());
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {});
+  Future<void> _load() async {
+    await PCNewUserGuideController.instance.load();
+    await _flow.load();
+    // 旧版本留下的待奖不再作为切页/冷启动入口，保留已转动扣次与真实记录。
+    final previous = _flow.pending?.reward;
+    if (previous != null) {
+      await _flow.discardPending(expectedRewardId: previous.id);
+    }
+    if (!mounted) return;
+    setState(() => _ready = true);
+    _scheduleDailyRefresh();
+    _activityChanged();
+  }
+
+  void _scheduleDailyRefresh() {
+    _dailyRefreshTimer?.cancel();
+    if (!mounted || !_foreground) return;
+    final now = _flow.now;
+    final next = DateTime(now.year, now.month, now.day + 1);
+    final delay = next.difference(now);
+    _dailyRefreshTimer = Timer(
+      delay.isNegative ? const Duration(seconds: 1) : delay,
+      () => unawaited(_refreshDailyOpportunities()),
+    );
+  }
+
+  Future<void> _refreshDailyOpportunities() async {
+    try {
+      await _flow.refreshDailyOpportunities();
+    } catch (_) {
+      // 保留现有次数与待奖；再次进入、回前台或点击GO时重试本地事务。
+    } finally {
+      if (mounted) _scheduleDailyRefresh();
+    }
+  }
+
+  void _flowChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _activityChanged() {
+    if (!mounted) return;
+    final becameActive = _active && !_wasActive;
+    if (!_active && _wasActive) _rewardVisit++;
+    _wasActive = _active;
+    setState(() {});
+    if (becameActive) unawaited(_refreshDailyOpportunities());
+  }
+
+  @override
+  void didUpdateWidget(covariant PCWheel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _activityChanged();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      unawaited(_refreshDailyOpportunities());
+    } else {
+      _dailyRefreshTimer?.cancel();
+    }
+    _activityChanged();
   }
 
   @override
   void dispose() {
+    _dailyRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    PigsTabController.currentIndex.removeListener(_activityChanged);
+    PCPigUpgradeController.instance.removeListener(_activityChanged);
+    _flow.removeListener(_flowChanged);
+    final abandoned = _flow.pending?.reward;
+    if (abandoned != null) {
+      unawaited(_flow.discardPending(expectedRewardId: abandoned.id));
+    }
+    if (widget.controller == null) _flow.dispose();
+    _releaseHold();
     super.dispose();
   }
 
@@ -36,268 +164,360 @@ class PCWheelState extends State<PCWheel> with SingleTickerProviderStateMixin {
     return Scaffold(
       body: Consumer<PCLocalProvider>(
         builder: (context, provider, child) {
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              PCImg(
-                name: 'pc_wheel_bg',
-                width: 0.width(context),
-                height: 0.height(context),
-              ),
-              Column(
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = PCAdaptiveLayout.widthScale(
+                constraints.maxWidth,
+                designWidth: 375,
+              );
+              double s(double value) => value * scale;
+              return Stack(
+                fit: StackFit.expand,
                 children: [
-                  SizedBox(height: 64.h),
-                  SizedBox(
-                    width: 328.w,
-                    height: 112.w,
-                    child: _buildWheelTopCard(provider),
+                  PCImg(
+                    name: 'pc_wheel_bg',
+                    width: 0.width(context),
+                    height: 0.height(context),
                   ),
-                  SizedBox(height: 44.h),
-                  SizedBox(
-                    width: 360.w,
-                    height: 360.w + 28.h,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          bottom: 0,
-                          child: PCImg(
-                            name: 'pc_bottom_money',
-                            width: 360.w,
-                            height: 112.w,
-                          ),
-                        ),
-                        ParticleButton(
-                          onTap: () {
-                            tapWheelEvent();
-                          },
-                          child: SizedBox(
-                            width: 360.w,
-                            height: 360.w,
-                            child: PCPigWheelPage(imagePath: 'pc_wheel_center'),
-                          ),
-                        ),
-                        Positioned(
-                          left: (360.w - 38) * 0.5,
-                          top: 12.h,
-                          child: PCImg(
-                            name: 'pc_rectangle_icon',
-                            width: 38,
-                            height: 36,
-                          ),
-                        ),
-                        Positioned(
-                          top: 130.h,
-                          left: (360.w - 100) * 0.5,
-                          child: ParticleButton(
-                            child: PCImg(
-                              name: 'pc_go_btn',
-                              width: 100,
-                              height: 100,
+                  // 小屏允许内容滚动，避免固定高度挤入底部导航栏。
+                  SingleChildScrollView(
+                    child: Center(
+                      child: SizedBox(
+                        width: s(375),
+                        child: Column(
+                          children: [
+                            SizedBox(height: s(64)),
+                            SizedBox(
+                              width: s(328),
+                              height: provider.pc_pig_level == 0
+                                  ? s(108)
+                                  : s(112),
+                              child: PCBalanceHeader(
+                                provider: provider,
+                                rewardTarget: _rewardTarget,
+                              ),
                             ),
-                            onTap: () {
-                              tapWheelEvent();
-                            },
-                          ),
-                        ),
-                        Positioned(
-                          left: (360.w - 56) * 0.6,
-                          top: 120.h,
-                          child: SizedBox(
-                            width: 56,
-                            height: 36,
-                            child: Stack(
-                              children: [
-                                PCImg(name: 'pc_num_bg'),
-                                Center(
-                                  child: PCStrokeText(
-                                    text: '×${provider.pc_wheel_number}',
-                                    size: 16,
-                                    color: '#FFDD1D'.color(),
-                                    weight: FontWeight.w700,
-                                    skWidth: 1,
-                                    skColor: '#5D0D03'.color(),
+                            SizedBox(height: s(12)),
+                            // 与设计一致将宝箱、Quiz放在顶部栏下的同一行；随内容
+                            // 一起滚动，避免短屏或钻石/金猪顶部较高时与顶部余额重叠。
+                            SizedBox(
+                              width: double.infinity,
+                              height: s(64),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Positioned(
+                                    left: s(16),
+                                    child: PCWheelBonusChest(
+                                      size: s(64),
+                                      active: _active && !_openingBonus,
+                                      onTap: () => unawaited(_openBonus()),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  Positioned(
+                                    right: s(20),
+                                    child: ParticleButton(
+                                      onTap: () =>
+                                          PigsTabController.switchTo(1),
+                                      child: PCBouncyImage(
+                                        imagePath: 'pc_quiz_icon',
+                                        width: s(64),
+                                        height: s(64),
+                                        enableAnimation:
+                                            _active &&
+                                            !MediaQuery.disableAnimationsOf(
+                                              context,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                            SizedBox(
+                              width: s(360),
+                              height: s(360) + s(28),
+                              child: Stack(
+                                children: [
+                                  Positioned(
+                                    bottom: 0,
+                                    child: PCImg(
+                                      name: 'pc_bottom_money',
+                                      width: s(360),
+                                      height: s(112),
+                                    ),
+                                  ),
+                                  ParticleButton(
+                                    key: const ValueKey('pcWheelFaceButton'),
+                                    enabled: _ready && !_busy,
+                                    onTap: () {
+                                      tapWheelEvent();
+                                    },
+                                    child: SizedBox(
+                                      width: s(360),
+                                      height: s(360),
+                                      child: PCPigWheelPage(
+                                        key: _wheelKey,
+                                        imagePath: 'pc_wheel_center',
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: (s(360) - s(38)) * 0.5,
+                                    top: s(12),
+                                    child: PCImg(
+                                      name: 'pc_rectangle_icon',
+                                      width: s(38),
+                                      height: s(36),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: s(130),
+                                    left: (s(360) - s(100)) * 0.5,
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        ParticleButton(
+                                          key: const ValueKey(
+                                            'pcWheelGoButton',
+                                          ),
+                                          enabled: _ready && !_busy,
+                                          child: PCImg(
+                                            name: 'pc_go_btn',
+                                            width: s(100),
+                                            height: s(100),
+                                          ),
+                                          onTap: () {
+                                            tapWheelEvent();
+                                          },
+                                        ),
+                                        // 手势跟随 GO 按钮常驻，点击时穿透到原按钮。
+                                        Positioned(
+                                          right: s(-14),
+                                          bottom: s(-12),
+                                          child: IgnorePointer(
+                                            child: PCShouIcon(size: s(60)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: (s(360) - s(56)) * 0.6,
+                                    top: s(120),
+                                    child: SizedBox(
+                                      width: s(56),
+                                      height: s(36),
+                                      child: Stack(
+                                        children: [
+                                          PCImg(name: 'pc_num_bg'),
+                                          Center(
+                                            child: PCStrokeText(
+                                              text: '×${_flow.spins}',
+                                              size: s(16),
+                                              color: '#FFDD1D'.color(),
+                                              weight: FontWeight.w700,
+                                              skWidth: s(1),
+                                              skColor: '#5D0D03'.color(),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
+                  if (_effect != null) ...[
+                    const Positioned.fill(
+                      child: ModalBarrier(
+                        dismissible: false,
+                        color: Colors.transparent,
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: PCQuizRewardAnimation(
+                        reward: _effect!,
+                        balance: provider.pc_dollar_number,
+                        targetKey: _rewardTarget,
+                        onFinished: _rewardFinished,
+                      ),
+                    ),
+                  ],
                 ],
-              ),
-              Positioned(
-                right: 20,
-                top: 194.h,
-                child: ParticleButton(
-                  onTap: () {
-                    PigsTabController.switchTo(1);
-                  },
-                  child: const PCBouncyImage(
-                    imagePath: 'pc_quiz_icon',
-                    width: 64,
-                    height: 64,
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
     );
   }
 
-  void tapWheelEvent() {
-    WheelStartNotificationService.sendToStartIndexNotification(1);
-  }
-
-  Widget _buildWheelTopCard(PCLocalProvider provider) {
-    const double withdrawTarget = 100;
-    final double balance = provider.pc_dollar_number;
-    final double progress = (balance / withdrawTarget).clamp(0.0, 1.0);
-    final int collected = provider.pc_domand_number;
-    final int left = provider.pc_wheel_number;
-
-    return Container(
-      width: 328.w,
-      height: 112.w,
-      decoration: BoxDecoration(image: PCDImg('pc_wheel_top_bg')),
-      child: Stack(
-        children: [
-          Positioned(
-            left: 12.w,
-            top: 10.w,
-            width: 48,
-            height: 40,
-            child: PCImg(name: 'pc_pig_top_2', width: 48, height: 40),
-          ),
-          Positioned(
-            left: 64.w,
-            top: 20.w,
-            width: 178.w,
-            height: 16.w,
-            child: Container(
-              padding: EdgeInsets.all(2.w),
-              decoration: BoxDecoration(
-                color: '#003F00'.color(),
-                borderRadius: BorderRadius.circular(8.w),
-                border: Border.all(color: '#002700'.color(), width: 1.w),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6.w),
-                child: ColoredBox(
-                  color: '#1162F9'.color(),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: 0.1,
-                      heightFactor: 1,
-                      child: ColoredBox(color: '#2EEFFC'.color()),
-                    ),
-                  ),
-                ),
-              ),
+  Future<void> _openBonus() async {
+    if (!_active ||
+        _busy ||
+        _openingBonus ||
+        ModalRoute.of(context)?.isCurrent == false) {
+      return;
+    }
+    setState(() => _openingBonus = true);
+    PCAnalytics.event('h5_c');
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => const PCAnalyticsExposure(
+            event: 'h5_page',
+            child: PCWebkitview(
+              url: 'https://tinyurl.com/dfr3jy4u',
+              title: 'Games',
+              useNativeH5Client: true,
             ),
           ),
-          Positioned(
-            left: 64.w + (178.w * progress) - 10.w,
-            top: 17.w,
-            width: 20.w,
-            height: 20.w,
-            child: PCImg(name: 'pc_domand_icons', width: 20.w, height: 20.w),
-          ),
-          Positioned(
-            left: 64.w,
-            top: 20.w,
-            width: 178.w,
-            height: 16.w,
-            child: Center(
-              child: PCText(
-                text: '\$${balance.toStringAsFixed(0)}/\$100',
-                size: 11,
-                color: Colors.white,
-                weight: FontWeight.w800,
-              ),
-            ),
-          ),
-          Positioned(
-            right: 12.w,
-            top: 17.w,
-            width: 72.w,
-            height: 24.w,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                PCImg(name: 'pc_pp_bg', width: 72.w, height: 24.w),
-                Positioned(
-                  left: 5.w,
-                  child: PCImg(name: 'pc_paypal_0', width: 20.w, height: 20.w),
-                ),
-                Positioned(
-                  right: 7.w,
-                  child: PCStrokeText(
-                    text: '\$100',
-                    size: 12,
-                    color: '#FFAF00'.color(),
-                    weight: FontWeight.w700,
-                    skWidth: 1,
-                    skColor: '#624500'.color(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 45.w,
-            child: PCText(
-              text: "Money's in-ready to withdraw!",
-              size: 11,
-              color: Colors.white,
-              weight: FontWeight.w600,
-              align: TextAlign.center,
-            ),
-          ),
-          Positioned(
-            left: 12.w,
-            right: 12.w,
-            top: 70.w,
-            height: 30.w,
-            child: Container(
-              decoration: BoxDecoration(
-                color: '#004B05'.color(),
-                borderRadius: BorderRadius.circular(6.w),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildDiamondStat('Collected:', collected),
-                  Container(width: 1.w, height: 18.w, color: '#1B6C20'.color()),
-                  _buildDiamondStat('Left:', left),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDiamondStat(String label, int value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        PCText(
-          text: '$label $value',
-          size: 10,
-          color: Colors.white,
-          weight: FontWeight.w500,
         ),
-        SizedBox(width: 3.w),
-        PCImg(name: 'pc_act_1', width: 14.w, height: 14.w),
-      ],
-    );
+      );
+    } finally {
+      if (mounted) setState(() => _openingBonus = false);
+    }
+  }
+
+  Future<void> tapWheelEvent() async {
+    if (!_active || _busy) return;
+    setState(() => _handling = true);
+    _releaseUpgrade ??= PCPigUpgradeController.instance.holdPresentation();
+    final startedVisit = _rewardVisit;
+    try {
+      final result = await _flow.start();
+      if (!mounted) return;
+      if (result == PCWheelStartResult.started) {
+        await _wheelKey.currentState?.startRotation(_flow.pending!.segment);
+      }
+      if (!mounted) return;
+      setState(() => _handling = false);
+      if (!_active || startedVisit != _rewardVisit) {
+        final abandoned = _flow.pending?.reward;
+        if (abandoned != null) {
+          await _flow.discardPending(expectedRewardId: abandoned.id);
+        }
+        return;
+      }
+      switch (result) {
+        case PCWheelStartResult.started:
+        case PCWheelStartResult.pending:
+          await _showPending();
+        case PCWheelStartResult.noSpins:
+          _dialogOpen = true;
+          final goQuiz = await context.tipShow2(
+            const PCWheelNoChanceDialog(),
+            bc: const Color(0xE6000000),
+            scaleContent: false,
+            onPresented: () async {
+              PCAnalytics.event('no_chance_pop');
+            },
+          );
+          if (mounted && goQuiz == true) {
+            PigsTabController.switchTo(1);
+          }
+        case PCWheelStartResult.complete:
+          PigsTabController.switchTo(3);
+        case PCWheelStartResult.busy:
+          break;
+      }
+    } catch (_) {
+      if (mounted) {
+        PCDialogTool.toast(
+          context,
+          'Could not save the spin. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _handling = false;
+          _dialogOpen = false;
+        });
+      }
+      if (_effect == null) _releaseHold();
+    }
+  }
+
+  Future<void> _showPending() async {
+    final reward = _flow.pending?.reward;
+    if (reward == null || !_active || _busy) return;
+    // 排队/最后一步仍可转盘领奖；异常旧存档中的零金额只结算，不展示空奖励框。
+    if (reward.amount <= 0) {
+      await _flow.claim();
+      return;
+    }
+    setState(() => _dialogOpen = true);
+    _releaseUpgrade ??= PCPigUpgradeController.instance.holdPresentation();
+    PCQuizReward? claimed;
+    final provider = PCLocalProvider.instance;
+    try {
+      await context.tipShow2(
+        PCAwardDialog(
+          award: reward.amount,
+          reward: reward,
+          balance: provider.pc_dollar_number,
+          withdrawalTarget:
+              PCNewUserGuideController.instance.config.withdrawalTarget,
+          paymentAsset: 'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
+          remainingCollectible: reward.type == PCQuizRewardType.diamond
+              ? (PCQuizConfig.diamondTarget - _flow.diamonds).clamp(
+                  0,
+                  PCQuizConfig.diamondTarget,
+                )
+              : (PCQuizConfig.goldTarget - _flow.gold).clamp(
+                  0,
+                  PCQuizConfig.goldTarget,
+                ),
+          analyticsSource: 'wheel',
+          claimAdPlacement: 'nkmdl_wheel_rv',
+          closeAdPlacement: 'nkmdl_wheel_int',
+          onAbandon: () async {
+            await _flow.discardPending(expectedRewardId: reward.id);
+          },
+          onClaim: () async {
+            claimed = await _flow.claim(expectedRewardId: reward.id);
+            if (claimed != null && mounted) {
+              _releaseRewardPresentation ??= PCDialogCoordinator.instance
+                  .holdPresentation();
+            }
+            return claimed != null;
+          },
+        ),
+        bc: pcDialogBackdrop,
+        scaleContent: false,
+      );
+    } finally {
+      // 外部pop、路由替换及页面销毁也必须放弃原奖，不能在Tab回来时补弹。
+      if (claimed == null) {
+        await _flow.discardPending(expectedRewardId: reward.id);
+      }
+      if (mounted) {
+        setState(() {
+          _dialogOpen = false;
+          _effect = claimed;
+        });
+      }
+      if (claimed == null) _releaseHold();
+    }
+  }
+
+  void _releaseHold() {
+    _releaseUpgrade?.call();
+    _releaseUpgrade = null;
+    _releaseRewardPresentation?.call();
+    _releaseRewardPresentation = null;
+  }
+
+  void _rewardFinished() {
+    if (!mounted) return;
+    setState(() => _effect = null);
+    _releaseHold();
   }
 }

@@ -49,14 +49,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.2.0"
-  applovin_max:
-    dependency: "direct main"
-    description:
-      name: applovin_max
-      sha256: d179b33535589ce72dbc30c1fd0a3f0d249f5d1d547645b7837f8456c6a1df93
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.6.4"
   archive:
     dependency: transitive
     description:
@@ -241,6 +233,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.2"
+  cloudx_flutter:
+    dependency: "direct main"
+    description:
+      name: cloudx_flutter
+      sha256: a29f364790400328bcc6e15a854479f09446a085f7ee596202f3efe74376ff53
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.11.0"
   code_assets:
     dependency: transitive
     description:
@@ -457,7 +457,7 @@ packages:
   flutter_local_notifications:
     dependency: "direct main"
     description:
-      path: "lib/PCThrid/common_notifications-master"
+      path: "PCThrid/common_notifications-master"
       relative: true
     source: path
     version: "19.3.1"
@@ -823,6 +823,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pennyplicotollespinFK:
+    dependency: "direct main"
+    description:
+      path: "PCThrid/pennyplicotollespinFK"
+      relative: true
+    source: path
+    version: "0.0.1"
+  penyplicotcollectspinsh5:
+    dependency: "direct main"
+    description:
+      path: "PCThrid/penyplicotcollectspinsH5"
+      relative: true
+    source: path
+    version: "0.0.1"
   persistent_bottom_nav_bar:
     dependency: "direct main"
     description:
@@ -1071,12 +1085,12 @@ packages:
   thinkup_sdk:
     dependency: "direct main"
     description:
-      path: "lib/PCThrid/thinkup_sdk-1.0.15"
+      path: "PCThrid/thinkup_sdk-1.0.15"
       relative: true
     source: path
     version: "1.0.15"
   timezone:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: timezone
       sha256: dd14a3b83cfd7cb19e7888f1cbc20f258b8d71b54c06f79ac585f14093a287d1

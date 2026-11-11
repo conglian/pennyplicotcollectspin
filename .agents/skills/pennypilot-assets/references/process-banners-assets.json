@@ -1,0 +1,137 @@
+{
+  "file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "design_frames": {
+    "account_confirmed": "211:757",
+    "quiz": "211:808"
+  },
+  "design_canvas": [
+    360,
+    780
+  ],
+  "artwork_canvas": [
+    360,
+    332
+  ],
+  "source_record": "process-account-assets.json",
+  "verification": "2026-10-26: high-fidelity Figma context and native render bounds match existing 3x exports; PNG CRC, IDAT scanline SHA256, dimensions, RGBA and Software=Figma metadata rechecked. Existing lossless exports reused; screenshot is never an implementation asset.",
+  "dynamic_text": "Flutter PCText/RichText, Figma shear matrix preserved; target from PCNumberHelpers, never hardcoded from the design example.",
+  "assets": [
+    {
+      "path": "assets/images/pc_process_account_bottom_glow.png",
+      "confirmation_node": "211:772",
+      "quiz_node": "211:814",
+      "scale": 3,
+      "pixel_size": [
+        1080,
+        360
+      ],
+      "image_data_sha256": "a89711e72713dbbde69648c0b0b2e83eab168f5e0370d25f5d2e48d570c80b5d",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_red_glow.png",
+      "confirmation_node": "211:775",
+      "quiz_node": "211:815",
+      "scale": 3,
+      "pixel_size": [
+        824,
+        701
+      ],
+      "image_data_sha256": "d4c6613867efe5c7720797f068e1e56f6a3cdb7945e6130e04388dcf4fb31413",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_top_glow.png",
+      "confirmation_node": "211:777",
+      "quiz_node": "211:816",
+      "scale": 3,
+      "pixel_size": [
+        1080,
+        828
+      ],
+      "image_data_sha256": "9f42062a44446190107f3c07651d44fa898e02f7dea405f61476dd7d1f37407f",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_top_strip.png",
+      "confirmation_node": "211:766",
+      "quiz_node": "211:817",
+      "scale": 3,
+      "pixel_size": [
+        423,
+        241
+      ],
+      "image_data_sha256": "03b0faef3a2d135a9e68f425981b3fac5d285595f7251ff80ff5b9358b09b7f2",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_banner.png",
+      "confirmation_node": "211:764",
+      "quiz_node": "211:818",
+      "scale": 3,
+      "pixel_size": [
+        996,
+        586
+      ],
+      "image_data_sha256": "a1d15fcec28ba215d34611afa917544add812cff20de031580b5bc886b6f096f",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_bottom_strip.png",
+      "confirmation_node": "211:767",
+      "quiz_node": "211:819",
+      "scale": 3,
+      "pixel_size": [
+        765,
+        190
+      ],
+      "image_data_sha256": "f084c0206676b5a62b264cec1a9edfa9e0e5fa5e7652ebbda297d35ea0d51eb9",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_light.png",
+      "confirmation_node": "211:784",
+      "quiz_node": "211:823",
+      "scale": 3,
+      "pixel_size": [
+        928,
+        404
+      ],
+      "image_data_sha256": "007dab354d0cb21b63785c0fe35786cc74820ea06283a5fa6da2a5c4408774e3",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_star.png",
+      "confirmation_node": "211:793",
+      "quiz_node": "211:824",
+      "scale": 3,
+      "pixel_size": [
+        60,
+        60
+      ],
+      "image_data_sha256": "4d0bef592e2302b9bd1fd68727dd2c8a17e76745486c2ced70df2761f1be7a67",
+      "lossless_verified": true,
+      "reuse": true
+    },
+    {
+      "path": "assets/images/pc_process_account_check.png",
+      "confirmation_node": "211:804",
+      "quiz_node": null,
+      "scale": 3,
+      "pixel_size": [
+        71,
+        85
+      ],
+      "image_data_sha256": "f757fe24f46790637ce123d9a8f89542fe433e833bb40d043cf978ba5a5c628e",
+      "lossless_verified": true,
+      "reuse": true
+    }
+  ]
+}

@@ -1,0 +1,316 @@
+{
+  "fileKey": "i4Xsv9T30MQY7ySoExu4Fi",
+  "screen": {
+    "nodeId": "786:262",
+    "width": 360,
+    "height": 780,
+    "contentOrigin": {
+      "x": 0,
+      "y": 182
+    },
+    "contentSize": {
+      "width": 360,
+      "height": 389
+    }
+  },
+  "home": {
+    "frame": "1:5",
+    "gear": {
+      "nodeId": "795:598",
+      "x": 312,
+      "y": 32,
+      "width": 32,
+      "height": 32
+    },
+    "balanceHeader": {
+      "nodeId": "13:138",
+      "x": 16,
+      "y": 76,
+      "width": 328,
+      "height": 92
+    },
+    "gearToHeaderGap": 12
+  },
+  "export": {
+    "format": "PNG",
+    "constraint": {
+      "type": "SCALE",
+      "value": 3
+    },
+    "contentsOnly": true,
+    "method": "Figma Plugin API node.exportAsync",
+    "note": "download_assets renders included parent/white backgrounds; replaced every asset with native transparent exports. Panel transferred in 29 chunks and validated by full PNG CRC/zlib parser."
+  },
+  "assets": [
+    {
+      "nodeId": "795:598",
+      "name": "pc_settings_gear",
+      "path": "assets/images/pc_settings_gear.png",
+      "logicalWidth": 32,
+      "logicalHeight": 32,
+      "pixelWidth": 96,
+      "pixelHeight": 96,
+      "originalBytes": 8152,
+      "outputBytes": 7837,
+      "savedBytes": 315,
+      "savedPercent": 3.86,
+      "losslessVerified": true,
+      "imageDataSha256": "77d61a0c337b2f2e66cc34139a04102d2565d1095aeeb53dfd512a0f84e719aa",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:483",
+      "name": "pc_settings_volume_on",
+      "path": "assets/images/pc_settings_volume_on.png",
+      "logicalWidth": 112,
+      "logicalHeight": 92,
+      "pixelWidth": 336,
+      "pixelHeight": 276,
+      "originalBytes": 63924,
+      "outputBytes": 60437,
+      "savedBytes": 3487,
+      "savedPercent": 5.45,
+      "losslessVerified": true,
+      "imageDataSha256": "9b720a850263c18c39115bba111b444aab82b2d0baedebc98252cbd2e40bad53",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:492",
+      "name": "pc_settings_volume_off",
+      "path": "assets/images/pc_settings_volume_off.png",
+      "logicalWidth": 112,
+      "logicalHeight": 92,
+      "pixelWidth": 336,
+      "pixelHeight": 276,
+      "originalBytes": 64143,
+      "outputBytes": 60823,
+      "savedBytes": 3320,
+      "savedPercent": 5.18,
+      "losslessVerified": true,
+      "imageDataSha256": "2afc40feffa45740b2faf6964b5336d2492e5b79dc9377c65a3ee44cef3ead0c",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:491",
+      "name": "pc_settings_music_on",
+      "path": "assets/images/pc_settings_music_on.png",
+      "logicalWidth": 112,
+      "logicalHeight": 92,
+      "pixelWidth": 336,
+      "pixelHeight": 276,
+      "originalBytes": 61370,
+      "outputBytes": 57815,
+      "savedBytes": 3555,
+      "savedPercent": 5.79,
+      "losslessVerified": true,
+      "imageDataSha256": "d36817f5a0b405dd274bae411dda59ba1468052e41e5f4e4faa104a35bb533df",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:497",
+      "name": "pc_settings_music_off",
+      "path": "assets/images/pc_settings_music_off.png",
+      "logicalWidth": 112,
+      "logicalHeight": 92,
+      "pixelWidth": 336,
+      "pixelHeight": 276,
+      "originalBytes": 62583,
+      "outputBytes": 59195,
+      "savedBytes": 3388,
+      "savedPercent": 5.41,
+      "losslessVerified": true,
+      "imageDataSha256": "0aef62095af28f5b813ac13529a4486d96f45449645ac2d80e467cbc950d7d30",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "793:535",
+      "name": "pc_settings_row_bg",
+      "path": "assets/images/pc_settings_row_bg.png",
+      "logicalWidth": 240,
+      "logicalHeight": 56,
+      "pixelWidth": 720,
+      "pixelHeight": 168,
+      "originalBytes": 92775,
+      "outputBytes": 84253,
+      "savedBytes": 8522,
+      "savedPercent": 9.19,
+      "losslessVerified": true,
+      "imageDataSha256": "457d29167d42d3415fdd2a56d9c334d18b1acee20ed94cc99cd5480af5f15a25",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "793:539",
+      "name": "pc_settings_privacy_icon",
+      "path": "assets/images/pc_settings_privacy_icon.png",
+      "logicalWidth": 24,
+      "logicalHeight": 24,
+      "pixelWidth": 72,
+      "pixelHeight": 72,
+      "originalBytes": 3230,
+      "outputBytes": 3142,
+      "savedBytes": 88,
+      "savedPercent": 2.72,
+      "losslessVerified": true,
+      "imageDataSha256": "1960c1a2f8e438f16f3eac76f475a37ba6d5099dc3cc76006423e24cf6ed72f0",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "793:546",
+      "name": "pc_settings_contact_icon",
+      "path": "assets/images/pc_settings_contact_icon.png",
+      "logicalWidth": 24,
+      "logicalHeight": 24,
+      "pixelWidth": 72,
+      "pixelHeight": 72,
+      "originalBytes": 4030,
+      "outputBytes": 3914,
+      "savedBytes": 116,
+      "savedPercent": 2.88,
+      "losslessVerified": true,
+      "imageDataSha256": "ac61194ec192418f1dd06ea5122571e3d6785ecd3f2dfbf0de9d175ba37fa720",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "795:558",
+      "name": "pc_settings_arrow",
+      "path": "assets/images/pc_settings_arrow.png",
+      "logicalWidth": 16,
+      "logicalHeight": 16,
+      "pixelWidth": 48,
+      "pixelHeight": 48,
+      "originalBytes": 444,
+      "outputBytes": 409,
+      "savedBytes": 35,
+      "savedPercent": 7.88,
+      "losslessVerified": true,
+      "imageDataSha256": "ff6c034779952d02f419e0f5deb2ad9201421fdb9166c61d15c6c1319fa66e0a",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:419",
+      "name": "pc_settings_close",
+      "path": "assets/images/pc_settings_close.png",
+      "logicalWidth": 24,
+      "logicalHeight": 24,
+      "pixelWidth": 72,
+      "pixelHeight": 72,
+      "originalBytes": 6386,
+      "outputBytes": 6131,
+      "savedBytes": 255,
+      "savedPercent": 3.99,
+      "losslessVerified": true,
+      "imageDataSha256": "457534b6e40bcf7db4478e289d7765c70e8b9238993d12b8ee60dddb7841c623",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "nodeId": "789:416",
+      "name": "pc_settings_panel",
+      "path": "assets/images/pc_settings_panel.png",
+      "logicalWidth": 360,
+      "logicalHeight": 389,
+      "pixelWidth": 1080,
+      "pixelHeight": 1167,
+      "originalBytes": 981125,
+      "outputBytes": 893097,
+      "savedBytes": 88028,
+      "savedPercent": 8.97,
+      "losslessVerified": true,
+      "imageDataSha256": "3fbb9ca602ac98edcfcf6146ee67c1b290d41dcfee82904a3ac332b56a8fb521",
+      "alphaChannel": true,
+      "topLeftAlpha": 0
+    }
+  ],
+  "layout": {
+    "title": {
+      "x": 131,
+      "y": 16,
+      "width": 101,
+      "height": 36,
+      "fontSize": 28,
+      "lineHeight": 36,
+      "fontFamily": "Delight",
+      "fontStyle": "Bold",
+      "gradient": [
+        "#FFFFFF",
+        "#FFF5B1"
+      ]
+    },
+    "volume": {
+      "x": 60,
+      "y": 100,
+      "width": 112,
+      "height": 92
+    },
+    "music": {
+      "x": 188,
+      "y": 100,
+      "width": 112,
+      "height": 92
+    },
+    "privacyRow": {
+      "x": 60,
+      "y": 212,
+      "width": 240,
+      "height": 56
+    },
+    "contactRow": {
+      "x": 60,
+      "y": 281,
+      "width": 240,
+      "height": 56
+    },
+    "privacyIcon": {
+      "x": 76,
+      "y": 228,
+      "width": 24,
+      "height": 24
+    },
+    "contactIcon": {
+      "x": 76,
+      "y": 297,
+      "width": 24,
+      "height": 24
+    },
+    "privacyLabel": {
+      "x": 104,
+      "y": 230,
+      "fontSize": 14,
+      "lineHeight": 20
+    },
+    "contactLabel": {
+      "x": 104,
+      "y": 299,
+      "fontSize": 14,
+      "lineHeight": 20
+    },
+    "privacyArrow": {
+      "x": 268,
+      "y": 232,
+      "width": 16,
+      "height": 16
+    },
+    "contactArrow": {
+      "x": 268,
+      "y": 301,
+      "width": 16,
+      "height": 16
+    },
+    "close": {
+      "x": 320,
+      "y": 4,
+      "width": 24,
+      "height": 24
+    }
+  },
+  "note": "Off-state controls at full-frame y42 are Figma state references only and must not render as a separate visible row."
+}

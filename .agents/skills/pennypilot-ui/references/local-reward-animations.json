@@ -1,0 +1,72 @@
+[
+  {
+    "path": "assets/File/home_pig_fen.zip",
+    "stage": "cash",
+    "logical_slot": [
+      168,
+      140
+    ],
+    "composition_size": [
+      504,
+      420
+    ],
+    "fps": 60,
+    "duration_seconds": 1,
+    "effect": "pig gloss sweep (static pig body)",
+    "suitable_for": "PCQuizRewardAnimation pig slot",
+    "integrated_in": "lib/PCTool/PCQuizRewardAnimation.dart",
+    "playback": "once before shrink-to-balance; static fallback while loading, on error, or reduced motion"
+  },
+  {
+    "path": "assets/File/home_domand.json.zip",
+    "stage": "diamond",
+    "logical_slot": [
+      168,
+      140
+    ],
+    "composition_size": [
+      504,
+      420
+    ],
+    "fps": 60,
+    "duration_seconds": 1,
+    "effect": "pig gloss sweep (static pig body)",
+    "suitable_for": "PCQuizRewardAnimation pig slot",
+    "integrated_in": "lib/PCTool/PCQuizRewardAnimation.dart",
+    "playback": "once before shrink-to-balance; static fallback while loading, on error, or reduced motion"
+  },
+  {
+    "path": "assets/File/home_huangjin.zip",
+    "stage": "gold",
+    "logical_slot": [
+      168,
+      140
+    ],
+    "composition_size": [
+      504,
+      420
+    ],
+    "fps": 60,
+    "duration_seconds": 1,
+    "effect": "pig gloss sweep (static pig body)",
+    "suitable_for": "PCQuizRewardAnimation pig slot",
+    "integrated_in": "lib/PCTool/PCQuizRewardAnimation.dart",
+    "playback": "once before shrink-to-balance; static fallback while loading, on error, or reduced motion"
+  },
+  {
+    "path": "assets/File/guide_1.zip",
+    "effect": "pink pig illustration plus several dollar bill flight layers",
+    "suitable_for": "reuse only Rectangle.png dollar layers; remap flight endpoints"
+  },
+  {
+    "path": "assets/File/wallter_open.zip",
+    "composition_size": [
+      540,
+      540
+    ],
+    "fps": 60,
+    "duration_seconds": 1,
+    "effect": "gold bag opening with diamond and gold bar particle layers",
+    "suitable_for": "reuse flying diamond/gold layers while retaining the existing green reward base"
+  }
+]

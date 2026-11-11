@@ -1,0 +1,116 @@
+{
+  "figma_file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "page_node_id": "194:111",
+  "export_scale": 3,
+  "assets": [
+    {
+      "path": "assets/images/pc_rank_pig_gold.png",
+      "name": "pc_rank_pig_gold",
+      "node_id": "194:157",
+      "export_scale": 3,
+      "width": 504,
+      "height": 420,
+      "original_bytes": 295846,
+      "output_bytes": 280050,
+      "saved_bytes": 15796,
+      "saved_percent": 5.34,
+      "lossless_verified": true,
+      "image_data_sha256": "d5d141d31bbd3404a1b281d8451921f78ab3a0e5b1707bc6df03abcbac4f74e5",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "export_method": "exportAsync(contentsOnly: true)"
+    },
+    {
+      "id": "197:406",
+      "name": "pc_pig_show_quiz",
+      "width": 60,
+      "height": 60,
+      "path": "assets/images/pc_pig_show_quiz.png",
+      "original_bytes": 7525,
+      "output_bytes": 7097,
+      "saved_bytes": 428,
+      "saved_percent": 5.69,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "b5d0c1a25b8d2e5467d5241fa6344f1c6a1bf874ad0e34658b72da6a9e13fd91",
+      "export_scale": 3,
+      "node_id": "197:406",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "export_method": "exportAsync(contentsOnly: true)"
+    },
+    {
+      "id": "197:399",
+      "name": "pc_pig_show_ad",
+      "width": 60,
+      "height": 60,
+      "path": "assets/images/pc_pig_show_ad.png",
+      "original_bytes": 8087,
+      "output_bytes": 7731,
+      "saved_bytes": 356,
+      "saved_percent": 4.4,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "88f51bf8600f61c92d4d2dee62057cf5845ef99710e99dce08cc6cb49dd005ad",
+      "export_scale": 3,
+      "node_id": "197:399",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "export_method": "exportAsync(contentsOnly: true)"
+    },
+    {
+      "id": "197:408",
+      "name": "pc_pig_show_wheel",
+      "width": 60,
+      "height": 60,
+      "path": "assets/images/pc_pig_show_wheel.png",
+      "original_bytes": 9692,
+      "output_bytes": 9179,
+      "saved_bytes": 513,
+      "saved_percent": 5.29,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "920e3e24a18200c7230413374229c797acb4a6db282fd9de670d0419cd31d92d",
+      "export_scale": 3,
+      "node_id": "197:408",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "export_method": "exportAsync(contentsOnly: true)"
+    },
+    {
+      "path": "assets/images/pc_pig_show_money.png",
+      "width": 60,
+      "height": 60,
+      "original_bytes": 7229,
+      "output_bytes": 6828,
+      "saved_bytes": 401,
+      "saved_percent": 5.55,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "0c8d77f681b7a641fa840bc364c8e432f519425e14ff4e0e7226d94a277f6fb4",
+      "name": "pc_pig_show_money",
+      "node_id": "197:389",
+      "export_scale": 3,
+      "export_method": "exportAsync(contentsOnly: true)"
+    }
+  ],
+  "reused_assets": [
+    "pc_big_icon_0",
+    "pc_btn_bg",
+    "pc_close_btn",
+    "pc_paypal_0",
+    "pc_rank_avatar_01–54"
+  ]
+}

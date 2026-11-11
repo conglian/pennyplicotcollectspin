@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "641421874952",
-    "project_id": "c170-scratch",
-    "storage_bucket": "c170-scratch.firebasestorage.app"
+    "project_number": "16012674320",
+    "project_id": "gp177-55000",
+    "storage_bucket": "gp177-55000.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:641421874952:android:f43d2c9ab00d413d8efebd",
+        "mobilesdk_app_id": "1:16012674320:android:312a4c7ad0f11b694b5195",
         "android_client_info": {
-          "package_name": "com.example.pennypilotcollectspin"
+          "package_name": "com.moolash.jarpiggy.pro"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAohBw2wQSGf_VMZiIx2NTvAjgzqMuMCbo"
+          "current_key": "AIzaSyD13MLaH6Ssk7jQD8DHXTVqHPaLOXGumcU"
         }
       ],
       "services": {

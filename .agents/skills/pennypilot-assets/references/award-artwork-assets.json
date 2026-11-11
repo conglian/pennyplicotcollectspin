@@ -1,0 +1,73 @@
+{
+  "fileKey": "i4Xsv9T30MQY7ySoExu4Fi",
+  "sessionId": "f510c2ed-5d78-4631-9eec-e9a310f81e23",
+  "description": "同款独立钻石/金砖插画，从Figma源图原生导出300×300透明PNG，对应100×100逻辑槽位的3倍资源；真实导出约束为WIDTH300，并非原48节点SCALE3。未将旧48px文件或用户截图放大。光圈单独复用。",
+  "assets": [
+    {
+      "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_award_diamond.png",
+      "width": 300,
+      "height": 300,
+      "original_bytes": 92927,
+      "output_bytes": 85496,
+      "saved_bytes": 7431,
+      "saved_percent": 8.0,
+      "compressed": true,
+      "unchanged": true,
+      "lossless_verified": true,
+      "image_data_sha256": "361724178b09f24a2b30a0e4df9b8f70d0027f6647480d9cebc3877e71632d15",
+      "figmaNode": "431:389",
+      "sourceNodeLogicalSize": [
+        48,
+        48
+      ],
+      "sourceImagePixels": [
+        315,
+        286
+      ],
+      "nativeExportConstraint": {
+        "type": "WIDTH",
+        "value": 300
+      },
+      "targetLogicalSize": [
+        100,
+        100
+      ],
+      "targetPixelRatio": 3,
+      "hasAlphaChannel": true,
+      "topLeftAlpha": 0
+    },
+    {
+      "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_award_gold.png",
+      "width": 300,
+      "height": 300,
+      "original_bytes": 73679,
+      "output_bytes": 67624,
+      "saved_bytes": 6055,
+      "saved_percent": 8.22,
+      "compressed": true,
+      "unchanged": true,
+      "lossless_verified": true,
+      "image_data_sha256": "2ce7082c8299d1b0fc60188297b92d42b3b21afc953ed26e7b5b393788b357c1",
+      "figmaNode": "431:391",
+      "sourceNodeLogicalSize": [
+        48,
+        48
+      ],
+      "sourceImagePixels": [
+        682,
+        462
+      ],
+      "nativeExportConstraint": {
+        "type": "WIDTH",
+        "value": 300
+      },
+      "targetLogicalSize": [
+        100,
+        100
+      ],
+      "targetPixelRatio": 3,
+      "hasAlphaChannel": true,
+      "topLeftAlpha": 0
+    }
+  ]
+}

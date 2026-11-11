@@ -6,38 +6,36 @@ part of 'PCAdModel.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-PCAdModel _$PCAdModelFromJson(Map<String, dynamic> json) => PCAdModel()
-  ..xjgrpkac = (json['xjgrpkac'] as num).toInt()
-  ..wgcmmsne = (json['wgcmmsne'] as num).toInt()
-  ..olstk_switch = json['olstk_switch'] as bool
-  ..olstk_int = (json['olstk_int'] as List<dynamic>)
-      .map((e) => PCAdModellist.fromJson(e as Map<String, dynamic>))
-      .toList()
-  ..olstk_rv = (json['olstk_rv'] as List<dynamic>)
-      .map((e) => PCAdModellist.fromJson(e as Map<String, dynamic>))
-      .toList();
+PCAdModel _$PCAdModelFromJson(Map<String, dynamic> json) => PCAdModel(
+      nkmdl_int: (json['nkmdl_int'] as List<dynamic>?)
+              ?.map((e) => PCAdModellist.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      nkmdl_rv: (json['nkmdl_rv'] as List<dynamic>?)
+              ?.map((e) => PCAdModellist.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
 
 Map<String, dynamic> _$PCAdModelToJson(PCAdModel instance) => <String, dynamic>{
-      'xjgrpkac': instance.xjgrpkac,
-      'wgcmmsne': instance.wgcmmsne,
-      'olstk_switch': instance.olstk_switch,
-      'olstk_int': instance.olstk_int,
-      'olstk_rv': instance.olstk_rv,
+      'nkmdl_int': instance.nkmdl_int.map((e) => e.toJson()).toList(),
+      'nkmdl_rv': instance.nkmdl_rv.map((e) => e.toJson()).toList(),
     };
 
 PCAdModellist _$PCAdModellistFromJson(Map<String, dynamic> json) =>
-    PCAdModellist()
-      ..ayyibgmi = json['ayyibgmi'] as String
-      ..ckovkxxo = json['ckovkxxo'] as String
-      ..ichurcix = json['ichurcix'] as String
-      ..tavomvmz = (json['tavomvmz'] as num).toInt()
-      ..ecpm = (json['ecpm'] as num?)?.toDouble();
+    PCAdModellist(
+      byfxjhld: json['byfxjhld'] as String? ?? '',
+      dmhytwql: json['dmhytwql'] as String? ?? '',
+      ugebepat: json['ugebepat'] as String? ?? '',
+      gqqvwedz: (json['gqqvwedz'] as num?)?.toInt() ?? 0,
+      wdzqbsbt: (json['wdzqbsbt'] as num?)?.toInt() ?? 0,
+    );
 
 Map<String, dynamic> _$PCAdModellistToJson(PCAdModellist instance) =>
     <String, dynamic>{
-      'ayyibgmi': instance.ayyibgmi,
-      'ckovkxxo': instance.ckovkxxo,
-      'ichurcix': instance.ichurcix,
-      'tavomvmz': instance.tavomvmz,
-      'ecpm': instance.ecpm,
+      'byfxjhld': instance.byfxjhld,
+      'dmhytwql': instance.dmhytwql,
+      'ugebepat': instance.ugebepat,
+      'gqqvwedz': instance.gqqvwedz,
+      'wdzqbsbt': instance.wdzqbsbt,
     };

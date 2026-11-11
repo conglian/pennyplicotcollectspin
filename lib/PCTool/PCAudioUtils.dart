@@ -1,304 +1,328 @@
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import 'PCLogger.dart';
 import 'pc_LocalProvider.dart';
 
-class PCAudioUtils {
-  // 单例实例
+/// 本地播放器端口；生产通过audioplayers播放，测试无需调用设备声卡。
+abstract interface class PCAudioPlayback {
+  bool get playing;
+  Future<void> play(String asset, {required bool loop, required double volume});
+  Future<void> resume();
+  Future<void> pause();
+  Future<void> stop();
+  Future<void> dispose();
+}
+
+class _PCNativeAudioPlayback implements PCAudioPlayback {
+  _PCNativeAudioPlayback({required this.background});
+  final bool background;
+  final AudioPlayer _player = AudioPlayer();
+  Future<void>? _preparing;
+
+  @override
+  bool get playing => _player.state == PlayerState.playing;
+
+  Future<void> _prepare() => _preparing ??= () async {
+    await _player.setPlayerMode(
+      background ? PlayerMode.mediaPlayer : PlayerMode.lowLatency,
+    );
+    await _player.setAudioContext(
+      AudioContext(
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: false,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.game,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+      ),
+    );
+  }();
+
+  @override
+  Future<void> play(
+    String asset, {
+    required bool loop,
+    required double volume,
+  }) async {
+    await _prepare();
+    await _player.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.stop);
+    await _player.setVolume(volume);
+    await _player.play(AssetSource(asset));
+  }
+
+  @override
+  Future<void> resume() => _player.resume();
+  @override
+  Future<void> pause() => _player.pause();
+  @override
+  Future<void> stop() => _player.stop();
+  @override
+  Future<void> dispose() => _player.dispose();
+}
+
+/// 应用音乐与音效共用工具：两个开关独立缓存，关闭立即停播。
+/// 启动先读缓存再播放，页面切换不重建BGM，后台及原生广告期间不恢复音乐。
+class PCAudioUtils with WidgetsBindingObserver {
   static final PCAudioUtils _instance = PCAudioUtils._internal();
+  static PCAudioUtils? _testingInstance;
+  factory PCAudioUtils() => _testingInstance ?? _instance;
+  PCAudioUtils._internal()
+    : _createPlayer = ((background) =>
+          _PCNativeAudioPlayback(background: background));
 
-  factory PCAudioUtils() => _instance;
+  @visibleForTesting
+  PCAudioUtils.testing({
+    required PCAudioPlayback Function(bool background) createPlayer,
+  }) : _createPlayer = createPlayer;
 
-  PCAudioUtils._internal();
+  @visibleForTesting
+  static void overrideForTesting(PCAudioUtils? value) {
+    if (!kDebugMode) throw UnsupportedError('Debug audio override only');
+    _testingInstance = value;
+  }
 
-  // 背景音乐播放器
-  final AudioPlayer _bgmPlayer = AudioPlayer();
+  static const backgroundAsset = 'File/bgm.mp3';
+  static const quizOptionAsset = 'File/quiz_option.mp3';
+  static const rewardAsset = 'File/reward_collect.mp3';
+  final PCAudioPlayback Function(bool background) _createPlayer;
+  final List<PCAudioPlayback> playerQueue = [];
+  final Map<PCAudioPlayback, int> _effectOperations = {};
+  PCAudioPlayback? _bgmPlayer;
+  Future<void>? _settingsLoading, _poolLoading, _startup;
+  Future<void> _musicTail = Future<void>.value();
+  bool _observing = false, _foreground = true, _bgmStarted = false;
+  bool _disposed = false;
+  bool Function()? _nativeAdShowing;
+  int _effectsEpoch = 0;
+  int _effectSequence = 0;
+  int _adMusicHolds = 0;
 
-  // 音效播放器池，避免音效重叠被打断
-  final List<AudioPlayer> playerQueue = [];
+  bool get backgroundMusicEnabled => PCLocalProvider.instance.pc_bg_music;
+  bool get soundEffectsEnabled => PCLocalProvider.instance.pc_sound_music;
 
-  final int _maxSfxPlayers = 2;
-
-  bool _bgmPlaying = false;
-  AudioPlayer? _scratchPlayer;
-  Future<void>? _scratchPrepareFuture;
-  AudioPlayer? _dollarPlayer;
-  Future<void>? _dollarPrepareFuture;
-
-  Future<void> initTempQueue() async {
-    // 初始化音效播放器池
-    if (playerQueue.isEmpty) {
-      for (int i = 0; i < _maxSfxPlayers; i++) {
-        var audioPlayer = AudioPlayer();
-        await audioPlayer.setPlayerMode(PlayerMode.lowLatency);
-        await audioPlayer.setReleaseMode(ReleaseMode.stop);
-        audioPlayer.setAudioContext(
-          AudioContext(
-            android: AudioContextAndroid(
-              isSpeakerphoneOn: true,
-              stayAwake: false,
-              contentType: AndroidContentType.music,
-              usageType: AndroidUsageType.game, // 或 media
-              audioFocus: AndroidAudioFocus.none, // ✅ 不抢焦点
-            ),
-          ),
-        );
-        playerQueue.add(audioPlayer);
+  /// 原生广告状态由启动页注入，避免工具与广告管理器互相依赖。
+  Future<void> initializeForStartup({bool Function()? isNativeAdShowing}) {
+    _nativeAdShowing = isNativeAdShowing ?? _nativeAdShowing;
+    return _startup ??= () async {
+      _disposed = false;
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+      if (!_observing) {
+        WidgetsBinding.instance.addObserver(this);
+        _observing = true;
       }
+      try {
+        await loadSettings();
+        await playBGM();
+      } catch (error) {
+        asLog.error('Audio startup failed: $error');
+      }
+    }();
+  }
+
+  Future<void> loadSettings() => _settingsLoading ??= PCLocalProvider.instance
+      .loadAudioSettings()
+      .catchError((Object error) {
+        _settingsLoading = null;
+        throw error;
+      });
+
+  Future<void> setBackgroundMusicEnabled(bool value) async {
+    await loadSettings();
+    await PCLocalProvider.instance.updateAudioSettings(backgroundMusic: value);
+    if (value) {
+      await playBGM();
+    } else {
+      await stopBGM();
     }
   }
 
-  /// 播放背景音乐，循环播放
-  Future<void> playBGM({double volume = 0.6}) async {
-    if (!PCLocalProvider.instance.pc_bg_music) return;
-    if (_bgmPlayer.state == PlayerState.stopped) {
-      await _bgmPlayer.setReleaseMode(ReleaseMode.loop);
-      await _bgmPlayer.setVolume(volume);
-      await _bgmPlayer.play(AssetSource('File/bgm.mp3'));
-    } else if (_bgmPlayer.state == PlayerState.paused) {
-      await _bgmPlayer.resume();
-    }
-    _bgmPlaying = true;
+  Future<void> setSoundEffectsEnabled(bool value) async {
+    await loadSettings();
+    await PCLocalProvider.instance.updateAudioSettings(soundEffects: value);
+    if (!value) await stopAllTempAudio();
   }
 
-  /// 暂停背景音乐
-  Future<void> pauseBGM() async {
-    if (_bgmPlaying || _bgmPlayer.state == PlayerState.playing) {
-      await _bgmPlayer.pause();
-      _bgmPlaying = false;
-    }
+  bool get _mayPlayMusic =>
+      !_disposed &&
+      _foreground &&
+      backgroundMusicEnabled &&
+      _adMusicHolds == 0 &&
+      !(_nativeAdShowing?.call() ?? false);
+
+  /// 广告展示前持有恢复禁令，并由调用方await pauseBGM后再调用原生show。
+  /// 释放幂等；后台、音乐关闭或还有其它广告持有时不会恢复播放。
+  VoidCallback holdBGMForAd() {
+    _adMusicHolds++;
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      _adMusicHolds--;
+      if (!_disposed) unawaited(playBGM());
+    };
   }
 
-  /// 恢复背景音乐
-  Future<void> resumeBGM() async {
-    await playBGM();
+  Future<void> _music(
+    Future<void> Function() action, {
+    bool requireSuccess = false,
+  }) {
+    final operation = _musicTail.then((_) => action());
+    _musicTail = operation.catchError((Object error) {
+      asLog.error('Background audio failed: $error');
+    });
+    return requireSuccess ? operation : _musicTail;
   }
 
-  /// 停止背景音乐
-  Future<void> stopBGM() async {
-    await _bgmPlayer.stop();
-    _bgmPlaying = false;
-  }
-
-  Future<void> playBigwinAudio() async {
-    await playTempAudio('File/reward_stage_3.wav');
-  }
-
-  Future<void> playCashAudio() async {
-    await playTempAudio('File/reward_stage_1.mp3');
-  }
-
-  Future<void> playRewardStage2Audio() async {
-    await playTempAudio('File/reward_stage_2.wav');
-  }
-
-  /// 300/700 金额达到时的运营弹窗
-  Future<void> playOperationAudio() async {
-    await playTempAudio('File/operation_3.mp3');
-  }
-
-  Future<void> playGuaAudio() async {
-    if (!PCLocalProvider.instance.pc_sound_music) return;
+  /// 循环背景音乐；已有播放不重复启动，广告关闭及回前台沿用暂停位置。
+  Future<void> playBGM({double volume = .6}) async {
     try {
-      await prepareScratchAudio();
-      final player = _scratchPlayer;
-      if (player == null) return;
-      await player.stop();
-      await player.resume();
-    } catch (e, st) {
-      asLog.error("playGuaAudio play error: $e\n$st");
-    }
-  }
-
-  Future<void> prepareScratchAudio() {
-    final pending = _scratchPrepareFuture;
-    if (pending != null) return pending;
-    final future = _prepareScratchAudio();
-    _scratchPrepareFuture = future;
-    return future;
-  }
-
-  Future<void> _prepareScratchAudio() async {
-    if (_scratchPlayer != null) return;
-    try {
-      final player = AudioPlayer();
-      await player.setPlayerMode(PlayerMode.lowLatency);
-      await player.setReleaseMode(ReleaseMode.stop);
-      await player.setAudioContext(
-        AudioContext(
-          android: AudioContextAndroid(
-            isSpeakerphoneOn: true,
-            stayAwake: false,
-            contentType: AndroidContentType.music,
-            usageType: AndroidUsageType.game,
-            audioFocus: AndroidAudioFocus.none,
-          ),
-        ),
-      );
-      await player.setVolume(1);
-      await player.setSource(AssetSource('File/scratch.mp3'));
-      // 预热底层播放通道，避免首次自动刮卡时出现明显的冷启动延迟。
-      await player.setVolume(0);
-      await player.resume();
-      await Future.delayed(const Duration(milliseconds: 40));
-      await player.stop();
-      await player.setVolume(1);
-      _scratchPlayer = player;
-    } catch (e, st) {
-      _scratchPrepareFuture = null;
-      asLog.error("prepareScratchAudio error: $e\n$st");
-      rethrow;
-    }
-  }
-
-  Future<void> prepareDolasAudio() {
-    final pending = _dollarPrepareFuture;
-    if (pending != null) return pending;
-    final future = _prepareDolasAudio();
-    _dollarPrepareFuture = future;
-    return future;
-  }
-
-  Future<void> _prepareDolasAudio() async {
-    if (_dollarPlayer != null) return;
-    try {
-      final player = AudioPlayer();
-      await player.setPlayerMode(PlayerMode.lowLatency);
-      await player.setReleaseMode(ReleaseMode.stop);
-      await player.setAudioContext(
-        AudioContext(
-          android: AudioContextAndroid(
-            isSpeakerphoneOn: true,
-            stayAwake: false,
-            contentType: AndroidContentType.music,
-            usageType: AndroidUsageType.game,
-            audioFocus: AndroidAudioFocus.none,
-          ),
-        ),
-      );
-      await player.setVolume(1);
-      await player.setSource(AssetSource('File/flying_money.mp3'));
-      // 预热底层播放通道，避免飞钱音效首次播放时无声或延迟。
-      await player.setVolume(0);
-      await player.resume();
-      await Future.delayed(const Duration(milliseconds: 40));
-      await player.stop();
-      await player.setVolume(1);
-      _dollarPlayer = player;
-    } catch (e, st) {
-      _dollarPrepareFuture = null;
-      asLog.error("prepareDolasAudio error: $e\n$st");
-      rethrow;
-    }
-  }
-
-  Future<void> playWheelAudio() async {
-    await playTempAudio('File/wheel.mp3');
-  }
-
-  Future<void> playchouAudio() async {
-    await playTempAudio('File/box_open.mp3');
-  }
-
-  Future<void> playFaildAudio() async {
-    await playTempAudio('File/scratch_fail.mp3');
-  }
-
-  Future<void> playErrorCommonAudio() async {
-    await playTempAudio('File/error_common.mp3');
-  }
-
-  Future<void> playDolasAudio() async {
-    if (!PCLocalProvider.instance.pc_sound_music) return;
-    try {
-      await prepareDolasAudio();
-      final player = _dollarPlayer;
-      if (player == null) return;
-      await player.stop();
-      await player.resume();
-    } catch (e, st) {
-      asLog.error("playDolasAudio play error: $e\n$st");
-    }
-  }
-
-  Future<void> playShaiziAudio() async {
-    await playTempAudio('File/dice_roll.mp3');
-  }
-
-  Future<void> playDiceStepAudio() async {
-    await playTempAudio('File/dice_step.mp3');
-  }
-
-  Future<void> playTempAudio(String assetPath, {double volume = 1.0}) async {
-    if (!PCLocalProvider.instance.pc_sound_music) {
+      await loadSettings();
+    } catch (error) {
+      asLog.error('Audio settings unavailable: $error');
       return;
     }
-    await initTempQueue();
-    for (final player in playerQueue) {
-      if (player.state != PlayerState.playing) {
-        await _safePlay(player, assetPath, volume);
-        return;
+    await _music(() async {
+      if (!_mayPlayMusic) return;
+      final player = _bgmPlayer ??= _createPlayer(true);
+      if (player.playing) return;
+      if (_bgmStarted) {
+        await player.resume();
+      } else {
+        await player.play(backgroundAsset, loop: true, volume: volume);
+        _bgmStarted = true;
       }
-    }
-    // 都在播放，复用第一个
-    if (playerQueue.isNotEmpty) {
-      await _safePlay(playerQueue.first, assetPath, volume);
-    }
+      // 设置关闭或切后台可能发生在原生prepare/play期间，迟到播放也立即停止。
+      if (!_mayPlayMusic) await player.pause();
+    });
   }
 
-  Future<void> _safePlay(
-    AudioPlayer player,
-    String assetPath,
-    double volume,
-  ) async {
+  Future<void> pauseBGM({bool requireSuccess = false}) => _music(() async {
+    final player = _bgmPlayer;
+    if (player != null && _bgmStarted) await player.pause();
+  }, requireSuccess: requireSuccess);
+  Future<void> resumeBGM() => playBGM();
+  Future<void> stopBGM() => _music(() async {
+    await _bgmPlayer?.stop();
+    _bgmStarted = false;
+  });
+
+  Future<void> initTempQueue() => _poolLoading ??= () async {
+    for (var i = playerQueue.length; i < 2; i++) {
+      playerQueue.add(_createPlayer(false));
+    }
+  }();
+
+  Future<void> playQuizOptionAudio() => playTempAudio(quizOptionAsset);
+  Future<void> playRewardAudio() => playTempAudio(rewardAsset);
+
+  Future<void> playTempAudio(String assetPath, {double volume = 1}) async {
     try {
-      // ⭐ 关键点：彻底释放 native 资源
-      await player.release();
-
-      // 极小延迟，确保 native 层完成 teardown（可留可不留，Android 上建议保留）
-      await Future.delayed(const Duration(milliseconds: 20));
-
-      await player.setVolume(volume);
-      await player.play(AssetSource(assetPath));
-    } catch (e, st) {
-      asLog.error("playTempAudio play error: $e\n$st");
+      await loadSettings();
+      if (_disposed || !_foreground || !soundEffectsEnabled) return;
+      final epoch = _effectsEpoch;
+      await initTempQueue();
+      if (_disposed ||
+          !_foreground ||
+          !soundEffectsEnabled ||
+          epoch != _effectsEpoch) {
+        return;
+      }
+      final player = playerQueue.firstWhere(
+        (player) => !_effectOperations.containsKey(player) && !player.playing,
+        orElse: () => playerQueue.first,
+      );
+      final sequence = ++_effectSequence;
+      _effectOperations[player] = sequence;
+      try {
+        await player.stop();
+        if (_effectOperations[player] != sequence ||
+            _disposed ||
+            !_foreground ||
+            !soundEffectsEnabled ||
+            epoch != _effectsEpoch) {
+          return;
+        }
+        await player.play(assetPath, loop: false, volume: volume);
+        if (_effectOperations[player] == sequence &&
+            (_disposed ||
+                !_foreground ||
+                !soundEffectsEnabled ||
+                epoch != _effectsEpoch)) {
+          await player.stop();
+        }
+      } finally {
+        if (_effectOperations[player] == sequence) {
+          _effectOperations.remove(player);
+        }
+      }
+    } catch (error) {
+      asLog.error('Sound effect failed: $error');
     }
   }
 
   Future<void> stopAllTempAudio() async {
-    final scratchPlayer = _scratchPlayer;
-    if (scratchPlayer != null) {
-      try {
-        await scratchPlayer.stop();
-      } catch (_) {}
-    }
+    _effectsEpoch++;
     for (final player in playerQueue) {
       try {
-        await player.release(); // ⭐ 关键
+        await player.stop();
       } catch (_) {}
     }
   }
 
-  /// 释放资源
+  // 保留原有音效调用名，到账类统一复用这次提供的奖励音频。
+  Future<void> playCashAudio() => playRewardAudio();
+  Future<void> playBigwinAudio() => playRewardAudio();
+  Future<void> playRewardStage2Audio() => playRewardAudio();
+  Future<void> playDolasAudio() => playRewardAudio();
+  Future<void> prepareDolasAudio() => initTempQueue();
+  Future<void> prepareScratchAudio() => initTempQueue();
+  Future<void> playGuaAudio() => playTempAudio('File/scratch.mp3');
+  Future<void> playWheelAudio() => playTempAudio('File/wheel.mp3');
+  Future<void> playchouAudio() => playTempAudio('File/box_open.mp3');
+  Future<void> playFaildAudio() => playTempAudio('File/scratch_fail.mp3');
+  Future<void> playErrorCommonAudio() => playTempAudio('File/error_common.mp3');
+  Future<void> playOperationAudio() => playTempAudio('File/operation_3.mp3');
+  Future<void> playShaiziAudio() => playTempAudio('File/dice_roll.mp3');
+  Future<void> playDiceStepAudio() => playTempAudio('File/dice_step.mp3');
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      unawaited(playBGM());
+    } else {
+      unawaited(pauseBGM());
+      unawaited(stopAllTempAudio());
+    }
+  }
+
+  Future<void> disposeBgm() => _music(() async {
+    await _bgmPlayer?.dispose();
+    _bgmPlayer = null;
+    _bgmStarted = false;
+  });
+
   Future<void> dispose() async {
-    await _bgmPlayer.dispose();
-    final scratchPlayer = _scratchPlayer;
-    if (scratchPlayer != null) {
-      await scratchPlayer.dispose();
-      _scratchPlayer = null;
+    _disposed = true;
+    _effectsEpoch++;
+    if (_observing) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observing = false;
     }
-    final dollarPlayer = _dollarPlayer;
-    if (dollarPlayer != null) {
-      await dollarPlayer.dispose();
-      _dollarPlayer = null;
-    }
+    await disposeBgm();
     for (final player in playerQueue) {
       await player.dispose();
     }
-  }
-
-  /// 释放资源
-  Future<void> disposeBgm() async {
-    await _bgmPlayer.dispose();
+    playerQueue.clear();
+    _effectOperations.clear();
+    _poolLoading = null;
+    _settingsLoading = null;
+    _startup = null;
   }
 }

@@ -1,3 +1,8 @@
+# WorkManager 使用 Room 反射创建数据库，Release 必须保留实现类的无参构造器。
+-keep class androidx.work.impl.WorkDatabase_Impl {
+    public <init>();
+}
+
 # Vungle
 -dontwarn com.vungle.ads.**
 -keepclassmembers class com.vungle.ads.** {

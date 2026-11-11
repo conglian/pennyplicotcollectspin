@@ -1,0 +1,99 @@
+{
+  "file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "scale": 3,
+  "format": "png",
+  "export": "Figma native exportAsync, contentsOnly:true, SCALE3; download_assets white-backed preview was replaced with native transparent PNG",
+  "compression": "import_png.py validates PNG CRC, decompressed scanlines and non-IDAT chunks before/after IDAT lossless recompression",
+  "assets": [
+    {
+      "node_id": "249:833",
+      "path": "assets/images/pc_cash_watermark_paypal.png",
+      "logical_size": [
+        68,
+        68
+      ],
+      "pixel_size": [
+        204,
+        204
+      ],
+      "original_bytes": 40843,
+      "output_bytes": 38579,
+      "image_data_sha256": "a8e39c2a20733a073c90f393858e27a4f2ddf32ffe792bf46e24353c515d6e4c",
+      "alpha_range": [
+        0,
+        95
+      ]
+    },
+    {
+      "node_id": "248:763",
+      "path": "assets/images/pc_cash_watermark_cashapp.png",
+      "logical_size": [
+        68,
+        68
+      ],
+      "pixel_size": [
+        204,
+        204
+      ],
+      "original_bytes": 39893,
+      "output_bytes": 37655,
+      "image_data_sha256": "9530519671f9b7fbd102169cc9d13a3879882b9684a9fb9fed6afbec539c28e9",
+      "alpha_range": [
+        0,
+        90
+      ]
+    },
+    {
+      "node_id": "249:911",
+      "path": "assets/images/pc_cash_queue_people.png",
+      "logical_size": [
+        16,
+        16
+      ],
+      "pixel_size": [
+        48,
+        48
+      ],
+      "original_bytes": 2284,
+      "output_bytes": 2162,
+      "image_data_sha256": "c2e6e2c597f830ace7308be76611c4a9f1f45a8ebf61f133ec795f47815e5bd7",
+      "alpha_range": [
+        0,
+        255
+      ]
+    },
+    {
+      "node_id": "249:915",
+      "path": "assets/images/pc_cash_progress_fill.png",
+      "logical_size": [
+        170,
+        12
+      ],
+      "pixel_size": [
+        510,
+        36
+      ],
+      "original_bytes": 9414,
+      "output_bytes": 8949,
+      "image_data_sha256": "1a05d9f3d5b56ef2cd4e0466734f97f0355c4f65b6fc30464a67f4d7c8102e45",
+      "alpha_range": [
+        0,
+        255
+      ]
+    }
+  ],
+  "reused": [
+    "cs_cash_act_0_s, cs_cash_act_1_n, cs_replece_icon, cs_time_icon: existing exact Cash header artwork; background gradients are native Flutter layers",
+    "pc_pig_upgrade_paypal, pc_act_0..3: payment channel logos",
+    "pc_stage_progress_diamond: exact diamond progress cursor; pc_zhuan_icons: gold bricks",
+    "pc_process_review_check, pc_ad_icon: status check and ad badge"
+  ],
+  "screens": {
+    "default": "236:1032",
+    "reviewing": "247:386",
+    "reviewApproved": "248:536",
+    "releasing": "248:615",
+    "queue": "249:818",
+    "lastStep": "249:982"
+  }
+}

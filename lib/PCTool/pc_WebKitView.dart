@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:penyplicotcollectspinsh5/penyplicotcollectspinsh5.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -8,8 +10,14 @@ import 'PCLogger.dart';
 class PCWebkitview extends StatefulWidget {
   final String url;
   final String title;
+  final bool useNativeH5Client;
 
-  const PCWebkitview({super.key, required this.url, required this.title});
+  const PCWebkitview({
+    super.key,
+    required this.url,
+    required this.title,
+    this.useNativeH5Client = false,
+  });
 
   @override
   State<PCWebkitview> createState() => _PCWebkitviewState();
@@ -17,11 +25,14 @@ class PCWebkitview extends StatefulWidget {
 
 class _PCWebkitviewState extends State<PCWebkitview> {
   late final WebViewController _controller;
+  late final bool _nativeH5 =
+      widget.useNativeH5Client && !kIsWeb && Platform.isAndroid;
   final String TAG = "PCWebkitview";
 
   @override
   void initState() {
     super.initState();
+    if (_nativeH5) return;
 
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -92,7 +103,11 @@ class _PCWebkitviewState extends State<PCWebkitview> {
               )
             : null,
       ),
-      body: SafeArea(child: WebViewWidget(controller: _controller)),
+      body: SafeArea(
+        child: _nativeH5
+            ? Penyplicotcollectspinsh5WebView(url: widget.url)
+            : WebViewWidget(controller: _controller),
+      ),
     );
   }
 }

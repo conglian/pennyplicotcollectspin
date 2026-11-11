@@ -13,6 +13,10 @@ class PCGradientText extends StatelessWidget {
   final bool softWrap;
   final int? maxLines;
   final double? textScaleFactor;
+  final FontWeight fontWeight;
+  final double? height;
+  final Color strokeColor;
+  final double strokeWidth;
 
   const PCGradientText(
     this.text, {
@@ -25,11 +29,15 @@ class PCGradientText extends StatelessWidget {
     this.softWrap = true,
     this.maxLines,
     this.textScaleFactor,
+    this.fontWeight = FontWeight.w700,
+    this.height,
+    this.strokeColor = Colors.black,
+    this.strokeWidth = 0,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
+    final fill = ShaderMask(
       blendMode: BlendMode.srcIn,
       shaderCallback: (bounds) => gradient.createShader(
         Rect.fromLTWH(0, 0, bounds.width, bounds.height),
@@ -37,8 +45,9 @@ class PCGradientText extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontWeight: FontWeight.w700,
+          fontWeight: fontWeight,
           fontSize: fontSize,
+          height: height,
           fontFamily: text_fontName,
           color: Colors.white, // 必须为白色，否则渐变不会生效
         ),
@@ -49,6 +58,33 @@ class PCGradientText extends StatelessWidget {
         maxLines: maxLines,
         textScaleFactor: textScaleFactor,
       ),
+    );
+    if (strokeWidth <= 0) return fill;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            fontWeight: fontWeight,
+            fontSize: fontSize,
+            height: height,
+            fontFamily: text_fontName,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = strokeWidth
+              ..strokeJoin = StrokeJoin.round
+              ..color = strokeColor,
+          ),
+          textAlign: textAlign,
+          textDirection: textDirection,
+          overflow: overflow,
+          softWrap: softWrap,
+          maxLines: maxLines,
+          textScaleFactor: textScaleFactor,
+        ),
+        fill,
+      ],
     );
   }
 }

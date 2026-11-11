@@ -12,6 +12,9 @@ class PCText extends StatelessWidget {
   final TextAlign? align;
   final bool useType;
   final bool is_btn;
+  final double height;
+  final List<Shadow>? shadows;
+  final List<InlineSpan>? spans;
 
   const PCText({
     required this.text,
@@ -22,6 +25,9 @@ class PCText extends StatelessWidget {
     this.align,
     this.useType = false,
     this.is_btn = false,
+    this.height = 1.15,
+    this.shadows,
+    this.spans,
     super.key,
   });
 
@@ -32,7 +38,8 @@ class PCText extends StatelessWidget {
       textStyle = TextStyle(
         fontSize: size,
         color: color,
-        height: 1.15,
+        height: height,
+        shadows: shadows,
         fontWeight: weight,
         fontFamily: text_fontName,
         decoration: TextDecoration.none,
@@ -41,13 +48,23 @@ class PCText extends StatelessWidget {
       textStyle = TextStyle(
         fontSize: size,
         color: color,
-        height: 1.15,
+        height: height,
+        shadows: shadows,
         fontWeight: weight,
         fontFamily: text_fontName,
         decoration: TextDecoration.none,
       );
     }
 
+    if (spans != null) {
+      return Text.rich(
+        TextSpan(text: text, children: spans),
+        textAlign: align,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        style: textStyle,
+      );
+    }
     return Text(
       text,
       textAlign: align,
@@ -176,12 +193,7 @@ class _PCBouncyTextState extends State<PCBouncyText>
     _scale = Tween<double>(
       begin: 0.85,
       end: 1.05,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     if (widget.enableAnimation) {
       _controller.repeat(reverse: true);
@@ -214,10 +226,7 @@ class _PCBouncyTextState extends State<PCBouncyText>
 
     // 动画控制
     if (widget.enableAnimation) {
-      text = ScaleTransition(
-        scale: _scale,
-        child: text,
-      );
+      text = ScaleTransition(scale: _scale, child: text);
     }
 
     return Container(
@@ -230,8 +239,7 @@ class _PCBouncyTextState extends State<PCBouncyText>
 
   /// 🎯 文本 + 描边层
   Widget _buildText() {
-    final hasStroke =
-        widget.strokeWidth > 0 && widget.strokeColor != null;
+    final hasStroke = widget.strokeWidth > 0 && widget.strokeColor != null;
 
     return Stack(
       alignment: Alignment.center,
@@ -268,14 +276,14 @@ class _PCBouncyTextState extends State<PCBouncyText>
   }
 }
 
-
 class PCBouncyChild extends StatefulWidget {
-  final  Widget child; // 显示文字
+  final Widget child; // 显示文字
   final bool enableAnimation; // ✅ 是否启用动画
 
   const PCBouncyChild({
     super.key,
-    this.enableAnimation = true, required this.child, // 默认开启动画
+    this.enableAnimation = true,
+    required this.child, // 默认开启动画
   });
 
   @override
@@ -333,9 +341,6 @@ class _PCBouncyChildState extends State<PCBouncyChild>
       return widget.child;
     }
 
-    return ScaleTransition(
-      scale: _scale,
-      child: widget.child,
-    );
+    return ScaleTransition(scale: _scale, child: widget.child);
   }
 }

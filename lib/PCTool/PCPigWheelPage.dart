@@ -1,28 +1,29 @@
 import 'dart:async';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'PCNumberManager.dart';
+import 'PCWheelController.dart';
 import 'package:flutter/material.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
-import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_img.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_stroke_text.dart';
 import 'dart:math';
 import 'package:provider/provider.dart';
 
 class PCPigWheelPage extends StatefulWidget {
-  final imagePath;
+  final String? imagePath;
 
   const PCPigWheelPage({super.key, this.imagePath});
 
   @override
-  _PCPigWheelPageState createState() => _PCPigWheelPageState();
+  PCPigWheelPageState createState() => PCPigWheelPageState();
 }
 
-class _PCPigWheelPageState extends State<PCPigWheelPage>
+class PCPigWheelPageState extends State<PCPigWheelPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
   double _rotationAngle = 0.0;
   bool _isAnimating = false;
+  StreamSubscription<int>? _wheelSubscription;
 
   // 假设转盘有8个奖项，每个奖项占45度
   final int itemCount = 8;
@@ -56,58 +57,35 @@ class _PCPigWheelPageState extends State<PCPigWheelPage>
   }
 
   void _submitWheelIndex() {
-    WheelStartNotificationService.stream.listen((value) {
+    _wheelSubscription = WheelStartNotificationService.stream.listen((value) {
       startRotation(value);
     });
   }
 
   @override
   void dispose() {
+    _wheelSubscription?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  // 添加复位功能（无动画）
-  void _resetWheel() {
-    if (_isAnimating) return;
-    if (mounted) {
-      setState(() {
-        _rotationAngle = 0.0; // 直接重置角度为0
-      });
+  /// 指针正对分区中心；从当前角度继续旋转，完成后才允许页面展示结果。
+  Future<void> startRotation(int targetIndex) async {
+    if (_isAnimating || !mounted) return;
+    if (targetIndex < 0 || targetIndex >= itemCount) return;
+    final current = _rotationAngle;
+    final targetAngle = (360 - targetIndex * (360 / itemCount)) % 360;
+    final delta = (targetAngle - current % 360 + 360) % 360;
+    _animation = Tween<double>(
+      begin: current,
+      end: current + 5 * 360 + delta,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.decelerate));
+    setState(() => _isAnimating = true);
+    try {
+      await _controller.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      // 页面退出时释放动画，已保存的转盘结果下次继续领取。
     }
-  }
-
-  void startRotation(int targetIndex) {
-    if (_isAnimating) return;
-    if (!mounted) return;
-    _resetWheel();
-    if (mounted) {
-      setState(() {
-        _isAnimating = true;
-      });
-    }
-
-    // 计算目标角度 (确保停在两个奖项中间)
-    double targetAngle =
-        360 - (targetIndex * (360 / itemCount) + (360 / itemCount / 1.03));
-
-    // 计算总旋转角度 (5圈 + 到目标位置的角度)
-    double totalRotation = 5 * 360 + targetAngle;
-
-    // 创建从当前角度到总旋转角度的动画曲线
-    _animation =
-        Tween<double>(
-          begin: _rotationAngle % 360,
-          end: _rotationAngle + totalRotation,
-        ).animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: Curves.decelerate, // 减速曲线实现从快到慢的效果
-          ),
-        );
-
-    _controller.reset();
-    _controller.forward();
   }
 
   @override
@@ -115,50 +93,118 @@ class _PCPigWheelPageState extends State<PCPigWheelPage>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // 转盘
-                Transform.rotate(
-                  angle: _rotationAngle * (pi / 180), // 将角度转换为弧度
-                  child: Container(
-                    width: 340.w,
-                    height: 340.w,
-                    decoration: BoxDecoration(
-                      image: PCDImg(widget.imagePath)
-                    ),
-                    child: Consumer<PCLocalProvider>(
-                      builder: (context, provider, child) {
-                        return Column(
-                          children: [
-                            SizedBox(height: 50.h),
-                            PCStrokeText(text: '${0.dolasType()}${0.1}-${0.5}', size: 14, color: '#FFFFFF'.color(), weight: FontWeight.w900, skWidth: 2, skColor: '#038719'.color()),
-                            Spacer(),
-                            Transform(
-                              alignment: Alignment.center, // 旋转的中心点
-                              transform: Matrix4.rotationZ(3.14159265), // 180度 = π 弧度
-                              child: PCStrokeText(
-                                text: '${0.dolasType()}${0.8}-${1.0}',
-                                size: 14,
-                                color: '#FFFFFF'.color(),
-                                weight: FontWeight.w900,
-                                skWidth: 2,
-                                skColor: '#038719'.color(),
+        // 盘面始终占父画布340/360，分区与金额只由内部360设计画布缩放一次。
+        child: FractionallySizedBox(
+          widthFactor: 340 / 360,
+          heightFactor: 340 / 360,
+          child: Transform.rotate(
+            angle: _rotationAngle * (pi / 180),
+            child: Consumer<PCLocalProvider>(
+              builder: (context, provider, child) {
+                if (widget.imagePath != null &&
+                    widget.imagePath != 'pc_wheel_center') {
+                  return PCImg(name: widget.imagePath!);
+                }
+                final range = PCNumberHelpers().pc_wheelRange;
+                return FittedBox(
+                  child: SizedBox(
+                    width: 360,
+                    height: 360,
+                    child: Stack(
+                      children: [
+                        const Positioned.fill(
+                          child: PCImg(name: 'pc_wheel_face_bg'),
+                        ),
+                        const Positioned(
+                          left: 152,
+                          top: 56,
+                          width: 56,
+                          height: 56,
+                          child: PCImg(name: 'pc_wheel_bag_top'),
+                        ),
+                        const Positioned(
+                          left: 208.284,
+                          top: 72.52,
+                          width: 79.196,
+                          height: 79.196,
+                          child: PCImg(name: 'pc_wheel_money_diagonal'),
+                        ),
+                        const Positioned(
+                          left: 56,
+                          top: 152,
+                          width: 56,
+                          height: 56,
+                          child: PCImg(name: 'pc_wheel_money_left'),
+                        ),
+                        const Positioned(
+                          left: 248,
+                          top: 152,
+                          width: 56,
+                          height: 56,
+                          child: PCImg(name: 'pc_wheel_money_right'),
+                        ),
+                        const Positioned(
+                          left: 72.52,
+                          top: 72.52,
+                          width: 79.196,
+                          height: 79.196,
+                          child: PCImg(name: 'pc_wheel_bag_top_left'),
+                        ),
+                        const Positioned(
+                          left: 208.284,
+                          top: 208.284,
+                          width: 79.196,
+                          height: 79.196,
+                          child: PCImg(name: 'pc_wheel_bag_bottom_right'),
+                        ),
+                        const Positioned(
+                          left: 72.52,
+                          top: 208.284,
+                          width: 79.196,
+                          height: 79.196,
+                          child: PCImg(name: 'pc_wheel_bag_bottom_left'),
+                        ),
+                        const Positioned(
+                          left: 151,
+                          top: 248,
+                          width: 56,
+                          height: 56,
+                          child: PCImg(name: 'pc_wheel_try_again'),
+                        ),
+                        for (var i = 0; i < 8; i++)
+                          Positioned.fill(
+                            child: Transform.rotate(
+                              angle: i * pi / 4,
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 32),
+                                  child: PCStrokeText(
+                                    text:
+                                        PCWheelController.cashSegments.contains(
+                                          i,
+                                        )
+                                        ? '\$${range.first}-${range.last}'
+                                        : i == 4
+                                        ? 'Try Again'
+                                        : 'Cash Bag',
+                                    size: 14,
+                                    color: Colors.white,
+                                    weight: FontWeight.w900,
+                                    skWidth: 2,
+                                    skColor: const Color(0xFF003000),
+                                  ),
+                                ),
                               ),
                             ),
-                            SizedBox(height: 48.h),
-                          ],
-                        );
-                      },
+                          ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          ],
+          ),
         ),
       ),
     );

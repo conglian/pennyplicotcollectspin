@@ -1,0 +1,1134 @@
+{
+  "review_date": "2026-10-28",
+  "source": {
+    "url": "https://stayfoolish.feishu.cn/sheets/IA8nsWy90hAlX8tKxBxcYCqcnuc?sheet=RaGtAM",
+    "export_name": "C177GP埋点_广告场景.xlsx",
+    "sheets": [
+      "产品",
+      "广告"
+    ]
+  },
+  "implementation_rules": [
+    "复用PCTBAEventTool.dart本地TBA协议，标准session/install不再额外发送同名自定义事件。",
+    "ad_impression只走pc_ad_fire，ad_pos_id及兼容字段valuate等于真实pc_showAd调用placeID，CloudX回调placement不能覆盖。",
+    "广告请求/填充/失败/关闭复用现有SDK回调，初始化与加载时长用真实Stopwatch毫秒数。",
+    "新字段ad_pre_ecpm按表格eCPM口径=SDK单次美元收入×1000×10^6；旧dang仍为单次收入×10^6，Adjust和Facebook保持单次美元。",
+    "真实SDK展示才累计cash_ad_detail；跳过广告、加载成功、播放失败不计展示。",
+    "页面与弹窗按真实首帧或协调器onPresented曝光，状态重建不重复。",
+    "美元和广告档位每5递增，上不封顶，持久化防重；钻石和金砖不算美元。",
+    "业务自定义事件统一使用PCAnalytics.event；广告manager的可注入reportEvent默认转发PCAnalytics，底层pc_event_fire只保留在统一上报器。",
+    "冷启动需开屏及真实回前台均直接请求正常nkmdl_launch插屏，不预判缓存；激励也直接进入pc_showAd，初始化/缓存/在途状态由管理器记录chance及失败原因。",
+    "SDK初始化的首个await前绑定展示服务，未初始化也进入pc_showAd。没有原生广告但检查/业务回调在途时，拒绝该次请求仍记录chance与notPrepared，不抢原owner或重复load/show。"
+  ],
+  "delivery_limitations": [
+    "沿用本地TBA尽力上报，没有新增服务端回执/网络重试保证。通知原生记录触发后，Flutter初始化或回前台提交上报；按ID防重。",
+    "非FCM实际通知发送均计曝光；前台服务初次启动、余额刷新、15分钟刷新每次真实发送分别记一次；单次分发不能双记。",
+    "广告上限业务触发暂不新增；金苹果广告流程按2026-10-28用户确认修改。"
+  ],
+  "product_counts": {
+    "implemented": 88,
+    "deferred_by_user": 1
+  },
+  "product": [
+    {
+      "row": 2,
+      "event": "session",
+      "description": "日活",
+      "status": "implemented",
+      "files": [
+        "lib/main.dart",
+        "lib/PCTool/PCSessionLifecycleController.dart",
+        "lib/PCTool/PCAnalytics.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ],
+      "note": "用户最新确认：冷启动cold_start一次；首次真实hidden/paused进入后台立即记录background_enter一次，resumed返回前台再记录foreground_return一次。同次hidden+paused不重复，inactive权限窗口及真实原生广告回切不计；与缓存检查/加载状态分开。"
+    },
+    {
+      "row": 3,
+      "event": "install",
+      "description": "安装",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCAnalytics.dart",
+        "lib/main.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 4,
+      "event": "launch_page",
+      "description": "启动应用",
+      "status": "implemented",
+      "files": [
+        "lib/PCBasic/PCLaunch.dart",
+        "lib/PCTool/PCNoticeHelp.dart"
+      ],
+      "required_parameters": "source_from: icon、push"
+    },
+    {
+      "row": 5,
+      "event": "cloak_req",
+      "description": "cloak请求",
+      "status": "implemented",
+      "files": [
+        "lib/PCBasic/PCLaunch.dart"
+      ]
+    },
+    {
+      "row": 6,
+      "event": "cloak_suc",
+      "description": "cloak返回成功",
+      "status": "implemented",
+      "files": [
+        "lib/PCBasic/PCLaunch.dart"
+      ],
+      "required_parameters": "cloak_user：【0】【1】，对应【黑名单用户】【自然量用户】"
+    },
+    {
+      "row": 7,
+      "event": "adjust_req",
+      "description": "adjust请求",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/pc_init_sdk.dart"
+      ]
+    },
+    {
+      "row": 8,
+      "event": "adjust_suc",
+      "description": "adjust成功回调次数",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/pc_init_sdk.dart"
+      ],
+      "required_parameters": "adjust_user:[0] [1]   【0】为A包用户、【1】为B包用户",
+      "note": "用户确认：真实Adjust归因callback中trackerName等于Organic为A=0，其余（含null）为B=1，不在缺少回调时补成功事件。"
+    },
+    {
+      "row": 9,
+      "event": "new_guide_one",
+      "description": "新手引导蒙层",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 10,
+      "event": "new_guide_one_c",
+      "description": "新手引导蒙层点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 11,
+      "event": "new_guide_two",
+      "description": "新手引导蒙层2",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 12,
+      "event": "new_guide_two_c",
+      "description": "新手引导蒙层2点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 13,
+      "event": "new_guide_three",
+      "description": "新手引导蒙层3",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 14,
+      "event": "new_guide_three_c",
+      "description": "新手引导蒙层3点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserGuideFlow.dart"
+      ]
+    },
+    {
+      "row": 15,
+      "event": "new_home_guide",
+      "description": "新用户首页蒙层引导",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 16,
+      "event": "new_home_guide_c",
+      "description": "新用户首页蒙层引导点击【try it now】",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCGuideDialog.dart"
+      ]
+    },
+    {
+      "row": 17,
+      "event": "new_sign_guide",
+      "description": "新用户签到蒙层引导",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 18,
+      "event": "new_sign_guide_c",
+      "description": "新用户签到蒙层引导点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart",
+        "lib/PCDialog/PCGuide/PCGuide0Dialog.dart"
+      ]
+    },
+    {
+      "row": 19,
+      "event": "new_sign_pop",
+      "description": "新用户签到弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 20,
+      "event": "new_sign_pop_c",
+      "description": "新用户签到弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCCheckInDialog.dart"
+      ]
+    },
+    {
+      "row": 21,
+      "event": "new_first_prize_pop",
+      "description": "新用户奖励弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 22,
+      "event": "new_first_prize_pop_c",
+      "description": "新用户奖励弹窗点击【Keep earning】",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCGuide2Dialog.dart"
+      ]
+    },
+    {
+      "row": 23,
+      "event": "new_quiz_guide",
+      "description": "新用户quiz页面蒙层引导",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 24,
+      "event": "new_quiz_guide_c",
+      "description": "新用户quiz页面蒙层引导点击（正确或错误答案都算）",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCGuideQuizDialog.dart"
+      ]
+    },
+    {
+      "row": 25,
+      "event": "new_quiz_correct_pop",
+      "description": "新用户答题正确奖励弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 26,
+      "event": "new_quiz_correct_pop_c",
+      "description": "新用户答题正确奖励弹窗点击claim",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 27,
+      "event": "new_confirm_account_pop",
+      "description": "新用户确认支付信息弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 28,
+      "event": "new_confirm_account_pop_c",
+      "description": "新用户确认支付信息弹窗点击confirm now",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCCash/PCCongsDialog.dart"
+      ]
+    },
+    {
+      "row": 29,
+      "event": "input_account_page",
+      "description": "输入账号页面",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCWithdrawPage.dart",
+        "lib/PCDialog/PCOther/PCProcessAccountDialog.dart"
+      ]
+    },
+    {
+      "row": 30,
+      "event": "input_account_page_c",
+      "description": "输入账号页面点击确认",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCWithdrawPage.dart",
+        "lib/PCDialog/PCOther/PCProcessAccountDialog.dart"
+      ]
+    },
+    {
+      "row": 31,
+      "event": "account_suc_pop",
+      "description": "输入账号成功弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 32,
+      "event": "account_suc_pop_c",
+      "description": "输入账号成功弹窗点击continue",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ]
+    },
+    {
+      "row": 33,
+      "event": "grow_bonus_pop",
+      "description": "Grow Bonus弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCReturningUserHost.dart",
+        "lib/PCDialog/PCGuide/PCNewUserHomeFlow.dart"
+      ],
+      "required_parameters": "pop_from:new/old"
+    },
+    {
+      "row": 34,
+      "event": "grow_bonus_pop_c",
+      "description": "Grow Bonus弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCReturningUserHost.dart",
+        "lib/PCDialog/PCGuide/PCGuide3Dialog.dart"
+      ]
+    },
+    {
+      "row": 35,
+      "event": "home_page",
+      "description": "首页曝光",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 36,
+      "event": "home_page_withdraw",
+      "description": "首页点击Withdraw",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 37,
+      "event": "home_float_c",
+      "description": "首页点击悬浮球",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 38,
+      "event": "home_float_wheel",
+      "description": "首页点击悬浮球wheel",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 39,
+      "event": "home_float_quiz",
+      "description": "首页点击悬浮球quiz",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 40,
+      "event": "home_float_apple",
+      "description": "首页点击悬浮球apple",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCHome.dart"
+      ]
+    },
+    {
+      "row": 41,
+      "event": "home_list_showpig",
+      "description": "首页榜单点击show pig",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCPigShowDialog.dart"
+      ]
+    },
+    {
+      "row": 42,
+      "event": "showpig_page",
+      "description": "show pig页面",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCPigShowDialog.dart"
+      ]
+    },
+    {
+      "row": 43,
+      "event": "showpig_page_c",
+      "description": "show pig页面点击go earn",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCPigShowDialog.dart"
+      ]
+    },
+    {
+      "row": 44,
+      "event": "double_pop",
+      "description": "激励弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCAward/PCAwardDialog.dart"
+      ],
+      "required_parameters": "pop_from:quiz、wheel"
+    },
+    {
+      "row": 45,
+      "event": "double_pop_c",
+      "description": "激励弹窗点击【Claim】",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCAward/PCAwardDialog.dart"
+      ],
+      "required_parameters": "pop_from:quiz、wheel"
+    },
+    {
+      "row": 46,
+      "event": "double_pop_close",
+      "description": "激励弹窗点击【Close】",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCAward/PCAwardDialog.dart"
+      ]
+    },
+    {
+      "row": 47,
+      "event": "process_confirm_account_pop",
+      "description": "流程弹窗--确认提现",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCProcessFlowHost.dart"
+      ]
+    },
+    {
+      "row": 48,
+      "event": "process_confirm_account_pop_c",
+      "description": "流程弹窗--确认提现点击【Confirm Account】",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCConfirmAccountDialog.dart"
+      ],
+      "required_parameters": "type:yes(已输入账号）/no（未输入账号）"
+    },
+    {
+      "row": 49,
+      "event": "confirm_account_toast",
+      "description": "确认提现横幅展示",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCProcessAccountConfirmedDialog.dart"
+      ]
+    },
+    {
+      "row": 50,
+      "event": "quiz_toast",
+      "description": "答题激励横幅展示",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCQuiz.dart"
+      ]
+    },
+    {
+      "row": 51,
+      "event": "process_rank_pop",
+      "description": "排行榜弹窗展示",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCProcessFlowHost.dart"
+      ]
+    },
+    {
+      "row": 52,
+      "event": "process_rank_pop_c",
+      "description": "排行榜弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCQuizRankingDialog.dart"
+      ]
+    },
+    {
+      "row": 53,
+      "event": "process_rank_pop_close",
+      "description": "排行榜弹窗点击关闭",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCQuizRankingDialog.dart"
+      ]
+    },
+    {
+      "row": 54,
+      "event": "priority_user_pop",
+      "description": "优质用户弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 55,
+      "event": "priority_user_pop_c",
+      "description": "优质用户弹窗点击collect",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCWithdrawFlow/PCWithdrawalGiftRewardDialog.dart"
+      ],
+      "scope_note": "用户确认此两阶段映射：优质用户开箱页曝光priority_user_pop，随后真实领取配置钻石奖励中奖页Collect点击priority_user_pop_c。"
+    },
+    {
+      "row": 56,
+      "event": "release_remind_pop",
+      "description": "次日放款弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 57,
+      "event": "release_remind_pop_c",
+      "description": "次日放款弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCWithdrawFlow/PCWithdrawalDiamondCountdownDialog.dart"
+      ]
+    },
+    {
+      "row": 58,
+      "event": "diamond_near_pop",
+      "description": "钻石提醒弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCProcessFlowHost.dart"
+      ]
+    },
+    {
+      "row": 59,
+      "event": "diamond_review_process_pop",
+      "description": "审核进度弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCProcessFlowHost.dart",
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 60,
+      "event": "diamond_remind_pop",
+      "description": "官方提醒弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCProcessFlowHost.dart"
+      ]
+    },
+    {
+      "row": 61,
+      "event": "push_appin_p",
+      "description": "站内通知触发",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCInAppNotificationHost.dart"
+      ]
+    },
+    {
+      "row": 62,
+      "event": "h5_c",
+      "description": " h5入口点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCWheel.dart",
+        "lib/PCTool/PCWheelBonusChest.dart"
+      ],
+      "normalization_note": "源表事件名前含空格；上报统一trim为h5_c。",
+      "note": "答题右上宝箱按钮按用户要求移除；仅转盘呼吸宝箱点击h5_c，并打开本地PCWebkitview的Games页面。"
+    },
+    {
+      "row": 63,
+      "event": "no_chance_pop",
+      "description": "转盘机会结束弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCWheel.dart"
+      ]
+    },
+    {
+      "row": 64,
+      "event": "no_chance_pop_c",
+      "description": "转盘机会结束弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCWheelNoChanceDialog.dart"
+      ]
+    },
+    {
+      "row": 65,
+      "event": "diamond_pig_getpop",
+      "description": "钻石猪进化奖励弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 66,
+      "event": "diamond_pig_getpop_c",
+      "description": "钻石猪进化奖励弹窗点击Next Step",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCCash/PCDiamondPigUpgradeDialog.dart"
+      ],
+      "note": "用户更正点击事件名为diamond_pig_getpop_c。",
+      "source_event": "diamond_pig_getpop"
+    },
+    {
+      "row": 67,
+      "event": "ad_review_pop",
+      "description": "广告主审核弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 68,
+      "event": "collect_diamond_pop",
+      "description": "引导收集钻石弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ],
+      "note": "用户确认收集钻石提示即升级钻石弹窗；同框分别报告diamond_pig_getpop和collect_diamond_pop，每个事件一次。"
+    },
+    {
+      "row": 69,
+      "event": "collect_diamond_pop_c",
+      "description": "引导收集钻石弹窗点击Earn Now",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCCash/PCDiamondPigUpgradeDialog.dart"
+      ],
+      "note": "用户确认同一钻石升级确认按钮分别报告diamond_pig_getpop_c和collect_diamond_pop_c，每个事件一次。"
+    },
+    {
+      "row": 70,
+      "event": "gold_pig_getpop",
+      "description": "金猪进化奖励弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 71,
+      "event": "gold_pig_getpop_c",
+      "description": "金猪进化奖励弹窗点击Start Now",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCCash/PCGoldPigUpgradeDialog.dart"
+      ]
+    },
+    {
+      "row": 72,
+      "event": "h5_page",
+      "description": "H5页面曝光",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCWheel.dart",
+        "lib/PCTool/pc_WebKitView.dart",
+        "lib/PCTool/PCAnalytics.dart"
+      ],
+      "note": "转盘宝箱打开本地Web页：title=Games，url=https://tinyurl.com/dfr3jy4u；路由实际首帧h5_page一次。"
+    },
+    {
+      "row": 73,
+      "event": "quiz_page",
+      "description": "Quiz页曝光",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCQuiz.dart"
+      ]
+    },
+    {
+      "row": 74,
+      "event": "answer_true_c",
+      "description": "正确选项点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCQuiz.dart"
+      ]
+    },
+    {
+      "row": 75,
+      "event": "answer_wrong_c",
+      "description": "错误选项点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCQuiz.dart"
+      ]
+    },
+    {
+      "row": 76,
+      "event": "quiz_wheel_c",
+      "description": "QUiz页点击转盘入口",
+      "status": "implemented",
+      "files": [
+        "lib/PCMainVC/PCQuiz.dart"
+      ]
+    },
+    {
+      "row": 77,
+      "event": "cash_queue_pop",
+      "description": "排队弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 78,
+      "event": "cash_queue_po_c",
+      "description": "排队弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCWithdrawFlow/PCWithdrawalApprovalDialog.dart"
+      ],
+      "normalization_note": "保留源表cash_queue_po_c拼写，未自行更名为pop_c。"
+    },
+    {
+      "row": 79,
+      "event": "one_last_step_pop",
+      "description": "最后一步提现弹窗曝光",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ],
+      "required_parameters": "type：quiz、spin、ad"
+    },
+    {
+      "row": 80,
+      "event": "one_last_step_pop_c",
+      "description": "最后一步提现弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCWithdrawFlow/PCWithdrawalLastStepDialog.dart"
+      ],
+      "required_parameters": "type：quiz、spin、ad"
+    },
+    {
+      "row": 81,
+      "event": "cash_not_pop",
+      "description": "提现不足弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCWithdrawalFlowHost.dart"
+      ]
+    },
+    {
+      "row": 82,
+      "event": "cash_not_pop_c",
+      "description": "提现不足弹窗点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCWithdrawFlow/PCWithdrawalInsufficientDialog.dart"
+      ]
+    },
+    {
+      "row": 83,
+      "event": "inform_p",
+      "description": "通知触发",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCAnalytics.dart",
+        "lib/PCTool/PCNoticeHelp.dart",
+        "lib/PCThrid/common_notifications-master/android/src/main/java/com/dexterous/flutterlocalnotifications/PennyNotificationAnalytics.java"
+      ],
+      "required_parameters": "type:local、unlock、fcm",
+      "note": "用户确认排除FCM曝光；其余本地、媒体、固定、亮锁屏及前台服务每次真实发送记inform_p，计划注册不记。FCM历史队列只确认删除，不报告inform_p；inform_c仍区分fcm。"
+    },
+    {
+      "row": 84,
+      "event": "inform_c",
+      "description": "通知点击",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCNoticeHelp.dart"
+      ],
+      "required_parameters": "type:local、unlock、fcm"
+    },
+    {
+      "row": 85,
+      "event": "inform_back_pop",
+      "description": "二次通知召回弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCNotificationPermissionHost.dart"
+      ]
+    },
+    {
+      "row": 86,
+      "event": "no_network_pop",
+      "description": "无网络弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCNoNetworkDialog.dart"
+      ]
+    },
+    {
+      "row": 87,
+      "event": "ad_fail_pop",
+      "description": "广告加载失败弹窗",
+      "status": "implemented",
+      "files": [
+        "lib/PCDialog/PCOther/PCAdLoadingFailedDialog.dart"
+      ]
+    },
+    {
+      "row": 88,
+      "event": "ad_limit_pop",
+      "description": "广告上限弹窗",
+      "status": "deferred_by_user",
+      "files": [
+        "lib/PCDialog/PCOther/PCAdLimitReachedDialog.dart"
+      ],
+      "note": "组件曝光已接；用户确认暂不添加广告上限业务触发逻辑。"
+    },
+    {
+      "row": 89,
+      "event": "cash_money_detail",
+      "description": "统计用户到达不同金额档位",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCAnalytics.dart",
+        "lib/main.dart"
+      ],
+      "required_parameters": "money_from:5,10,15,20,25,30...(每隔5一个档位，上不封顶）"
+    },
+    {
+      "row": 90,
+      "event": "cash_ad_detail",
+      "description": "统计用户累计看广告次数档位",
+      "status": "implemented",
+      "files": [
+        "lib/PCTool/PCAnalytics.dart",
+        "lib/PCTool/pc_ad_manger.dart"
+      ],
+      "required_parameters": "ad_from:5,10,15,20,25,30,35,40...（每隔5一个档位，上不封顶）"
+    }
+  ],
+  "advertising_events": [
+    {
+      "row": 2,
+      "event": "ad_impression",
+      "status": "reuse_standard_protocol",
+      "parameters": "ad_pos_id，ad_pre_ecpm，ad_format",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 5,
+      "event": "nkmdl_ad_request",
+      "status": "implemented",
+      "parameters": "ad_code_id/ad_format/ad_source_client",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 6,
+      "event": "nkmdl_ad_return",
+      "status": "implemented",
+      "parameters": "ad_code_id/ad_format/ad_source_client、nkmdl_ad_request_time",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 7,
+      "event": "nkmdl_ad_return_fail",
+      "status": "implemented",
+      "parameters": "ad_code_id/ad_format/ad_source_client、reason",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 8,
+      "event": "nkmdl_ad_chance",
+      "status": "implemented",
+      "parameters": "ad_pos_id",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 9,
+      "event": "nkmdl_ad_impression_fail",
+      "status": "implemented",
+      "parameters": "ad_pos_id、reason",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 10,
+      "event": "nkmdl_ad_imp_close",
+      "status": "implemented",
+      "parameters": "ad_pos_id、ad_code_id、ad_format",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    },
+    {
+      "row": 11,
+      "event": "nkmdl_ad_initsuc",
+      "status": "implemented",
+      "parameters": "ad_source_client、ad_init_time",
+      "files": [
+        "lib/PCTool/pc_ad_manger.dart",
+        "lib/PCTool/PCAdRevenue.dart",
+        "lib/PCTool/PCTBAEventTool.dart"
+      ]
+    }
+  ],
+  "advertising_placements": [
+    {
+      "row": 15,
+      "placeID": "nkmdl_launch",
+      "description": "开屏",
+      "status": "implemented",
+      "note": "用户最新确认：冷启动需要开屏和热启动真实回前台均使用nkmdl_launch，直接展示请求，不外层检查缓存。"
+    },
+    {
+      "row": 16,
+      "placeID": "nkmdl_moneybub_rv",
+      "description": "点击看激励视频",
+      "status": "superseded_by_user",
+      "note": "用户确认两个带AD气泡入口激励使用nkmdl_moneybub_getpop_rv；不额外制造nkmdl_moneybub_rv调用。"
+    },
+    {
+      "row": 17,
+      "placeID": "nkmdl_moneybub_getpop_rv",
+      "description": "气泡纸钞/钻石/金砖获得弹窗，点击【Collect】/【claim double】跳转至激励广告视频",
+      "status": "implemented",
+      "note": "用户确认两个带AD气泡点击后的入口激励使用nkmdl_moneybub_getpop_rv；入口成功先发第一笔，后续获得框仍按既有概率插屏Claim。"
+    },
+    {
+      "row": 18,
+      "placeID": "nkmdl_moneybub_getpop_int",
+      "description": "气泡纸钞/钻石/金砖获得弹窗，点击【Give up】/【claim】关闭弹窗概率出插屏",
+      "status": "implemented"
+    },
+    {
+      "row": 19,
+      "placeID": "nkmdl_applebub_int",
+      "description": "点击跳转插屏",
+      "status": "implemented",
+      "note": "用户确认金苹果入口必出插屏nkmdl_applebub_int，完整关闭后显示奖励框。"
+    },
+    {
+      "row": 20,
+      "placeID": "asd_rv",
+      "description": "金苹果获得弹窗，点击claim跳转激励视频",
+      "status": "implemented",
+      "note": "金苹果Claim改为激励，使用表中asd_rv，按钮带AD角标，真实激励成功才发奖。"
+    },
+    {
+      "row": 21,
+      "placeID": "nkmdl_applebub_getpop_int",
+      "description": "金苹果获得弹窗，点击关闭出插屏",
+      "status": "implemented"
+    },
+    {
+      "row": 22,
+      "placeID": "nkmdl_wheel_rv",
+      "description": "转盘纸钞/钻石/金砖获得弹窗，点击【Collect】/【claim double】跳转至激励广告视频",
+      "status": "implemented"
+    },
+    {
+      "row": 23,
+      "placeID": "nkmdl_wheel_int",
+      "description": "转盘纸钞/钻石/金砖获得弹窗，点击【Give up】/【claim】关闭弹窗概率出插屏",
+      "status": "implemented"
+    },
+    {
+      "row": 24,
+      "placeID": "nkmdl_quizgetc_rv",
+      "description": "答题获得奖励弹窗，点击claim跳转激励视频",
+      "status": "implemented"
+    },
+    {
+      "row": 25,
+      "placeID": "nkmdl_quizgetinfor_int",
+      "description": "答题获得奖励弹窗，点击关闭出插屏",
+      "status": "implemented"
+    },
+    {
+      "row": 26,
+      "placeID": "nkmdl_queue_rv",
+      "description": "点击Skip Wait跳转激励视频",
+      "status": "implemented"
+    },
+    {
+      "row": 27,
+      "placeID": "nkmdl_signin_rv",
+      "description": "签到出激励",
+      "status": "implemented"
+    }
+  ],
+  "additional_unmapped_placements": [
+    {
+      "placeID": "nkmdl_launch",
+      "description": "最新确认冷/热启动统一nkmdl_launch，不判断缓存，正常request→pc_showAd；保留引导/路由及广告回切互斥。",
+      "status": "confirmed"
+    },
+    {
+      "placeID": "withdrawal_task_video",
+      "description": "最后一步video任务，表格没有专属定义，保留现有值。",
+      "status": "retained_by_user"
+    }
+  ],
+  "validation": {
+    "flutter_tests": [
+      "pc_analytics_core_test.dart",
+      "pc_home_guide_analytics_test.dart",
+      "pc_analytics_quiz_withdrawal_test.dart",
+      "pc_ad_integration_test.dart",
+      "相关引导/答题/转盘/提现/通知回归"
+    ],
+    "native_tests": "通知真实分发/队列确认及现有前台、广播、FCM、媒体通知共19项通过",
+    "android_build": "flutter build apk --debug --no-pub 通过",
+    "runtime_smoke": "最新Android包保留原存档安装启动。模拟器确认答题右上宝箱已移除；转盘点击宝箱打开标题Games的本地Web页，网页游戏列表正常加载，h5_c与h5_page各一次，无致命异常，未答题/转盘/领奖。",
+    "confirmed_revision_tests": {
+      "home_chrome": 50,
+      "analytics_chrome": 57,
+      "wheel_chrome": 12,
+      "native_notification": 14,
+      "scope": "包含广告播放成功/失败/关闭防重、Adjust分类、钻石打点、前台scene路由、非FCM通知分发、宝箱动画和三种屏宽。"
+    },
+    "games_revision_tests": {
+      "quiz_chrome": 23,
+      "wheel_chrome": 12,
+      "android_build": "debug通过",
+      "scope": "移除答题宝箱，转盘宝箱打开Games本地Web页，URL/标题/点击曝光/连点防重/返回保持余额及机会。"
+    },
+    "session_fix": {
+      "reproduction": "同进程后台返回0条新增session；VM实证checkingShow=true但无activeAd/onAdClosed且is_showAd=false。",
+      "runtime": "保留同一进程及缓存检查状态，修复后后台返回标准TBA session请求从3增加至4，foreground_return触发一次，无session收集异常。",
+      "regression_tests": 28,
+      "installed_runtime": "最终APK冷启动cold_start=1、session HTTP请求=1；同PID真实后台返回foreground_return=1、session HTTP请求=2；收集异常及致命异常均0。"
+    },
+    "direct_launch_request": {
+      "foreground_launch_session_notice_tests": 47,
+      "ad_integration_tests": 31,
+      "android_build": "debug编译通过",
+      "scope": "冷/热启动正常nkmdl_launch入口；未初始化/无缓存/加载中/缓存检查在途记录chance和对应错误；激励同入口策略，既有owner与load/show防重。",
+      "runtime": "模拟器冷启动无缓存/加载中仍记录nkmdl_launch chance+notPrepared；同PID后台返回新增一次nkmdl_launch chance并真实展示插屏，关闭后chance保持2、close=1、session保持2，无循环补播或致命异常。"
+    },
+    "session_background_revision": {
+      "tests": 17,
+      "scope": "后台即时上报、hidden/paused去重、前台另报、inactive与原生广告回切排除、detached不重发旧前台。",
+      "installed_runtime": "模拟器同一PID：冷启动1请求；按HOME进入后台、尚未恢复时background_enter=1且请求增至2；恢复前台foreground_return=1且请求增至3，致命异常0。"
+    }
+  },
+  "confirmation_date": "2026-10-28",
+  "confirmation_source": "本会话用户逐条确认的10项；覆盖原表歧义与旧实现说明。",
+  "assets": [
+    {
+      "figma_page": "197:413",
+      "figma_node": "772:286",
+      "path": "assets/images/pc_wheel_bonus_chest.png",
+      "scale": 3,
+      "pixels": [
+        192,
+        192
+      ],
+      "original_bytes": 77732,
+      "compressed_bytes": 72247,
+      "lossless_verified": true
+    }
+  ],
+  "games_entry": {
+    "url": "https://tinyurl.com/dfr3jy4u",
+    "title": "Games",
+    "page": "PCWebkitview",
+    "source": "转盘宝箱",
+    "removed_entry": "答题页右上宝箱"
+  }
+}

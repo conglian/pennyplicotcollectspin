@@ -1,21 +1,45 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../PCTool/PCAdaptiveLayout.dart';
+import '../PCTool/PCAnalytics.dart';
 
-import '../PCDialog/PCCash/PCCashDialog.dart';
-import '../PCDialog/PCOther/PCOtherDialog.dart';
+import '../PCDialog/PCCash/PCAccountFeedbackDialog.dart';
+import '../PCTool/PCWithdrawValidation.dart';
+import '../PCTool/pc_LocalProvider.dart';
+import '../PCTool/pc_extension_help.dart';
+import '../PCDialog/PCOther/PCDialogTool.dart';
 import '../PCTool/pc_img.dart';
 import '../PCTool/pc_stroke_text.dart';
 import '../PCTool/pc_text.dart';
 
 enum PCWithdrawMethod { paypal, cashApp, pix, pagBank }
 
+/// 当前表单提交值；完整账号仅在当前路由回调中传递。
+class PCWithdrawDetails {
+  const PCWithdrawDetails(this.method, this.account);
+  final PCWithdrawMethod method;
+  final String account;
+  String get maskedAccount => PCWithdrawValidation.mask(account);
+}
+
 class PCWithdrawPage extends StatefulWidget {
   final PCWithdrawMethod initialMethod;
   final ValueChanged<PCWithdrawMethod>? onConfirm;
+  final ValueChanged<PCWithdrawDetails>? onSubmitted;
+
+  /// 恢复为确认成功弹窗的背景时不算再次进入资料填写页。
+  final bool trackExposure;
+  final bool isGuide;
+  final String? countryCode;
 
   const PCWithdrawPage({
     super.key,
     this.initialMethod = PCWithdrawMethod.paypal,
     this.onConfirm,
+    this.onSubmitted,
+    this.trackExposure = true,
+    this.isGuide = false,
+    this.countryCode,
   });
 
   @override
@@ -25,7 +49,11 @@ class PCWithdrawPage extends StatefulWidget {
 class _PCWithdrawPageState extends State<PCWithdrawPage> {
   late PCWithdrawMethod _method;
   String _pixAccountType = 'Email';
-  String _pagBankAccountType = 'CPF';
+  final TextEditingController _cpfController = TextEditingController();
+  final Set<TextEditingController> _invalidFields = {};
+  bool _submitted = false;
+  // 四个渠道同时展示；地区只决定初始选中项。
+  static const _methods = PCWithdrawMethod.values;
 
   final Map<PCWithdrawMethod, TextEditingController> _accountControllers = {
     for (final method in PCWithdrawMethod.values)
@@ -37,8 +65,36 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
   @override
   void initState() {
     super.initState();
-    _method = widget.initialMethod;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          widget.trackExposure &&
+          ModalRoute.of(context)?.isCurrent == true) {
+        PCAnalytics.event('input_account_page');
+      }
+    });
+    _method = widget.countryCode?.toUpperCase() == 'BR'
+        ? PCWithdrawMethod.pagBank
+        : widget.initialMethod;
+    for (final controller in [
+      ..._accountControllers.values,
+      _pixNameController,
+      _pagBankNameController,
+      _cpfController,
+    ]) {
+      controller.addListener(_formChanged);
+    }
   }
+
+  void _formChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _canSubmit =>
+      !_submitted &&
+      _accountControllers[_method]!.text.trim().isNotEmpty &&
+      (_method != PCWithdrawMethod.pix ||
+          (_cpfController.text.trim().isNotEmpty &&
+              _pixNameController.text.trim().isNotEmpty));
 
   @override
   void dispose() {
@@ -47,6 +103,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     }
     _pixNameController.dispose();
     _pagBankNameController.dispose();
+    _cpfController.dispose();
     super.dispose();
   }
 
@@ -57,7 +114,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
       backgroundColor: Colors.white,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final scale = (constraints.maxWidth / 360).clamp(0.85, 1.35);
+          final scale = PCAdaptiveLayout.widthScale(constraints.maxWidth);
           final safeTop = MediaQuery.paddingOf(context).top;
           final panelTop = safeTop + 64 * scale;
 
@@ -182,18 +239,20 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
   }
 
   Widget _buildMethodPicker(double Function(double) s) {
-    return SizedBox(
-      height: s(56),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: PCWithdrawMethod.values.length,
-        separatorBuilder: (context, index) => SizedBox(width: s(8)),
-        itemBuilder: (context, index) {
-          final method = PCWithdrawMethod.values[index];
-          return _buildMethodItem(method, s);
-        },
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var row = 0; row < 2; row++) ...[
+          if (row > 0) SizedBox(height: s(8)),
+          Row(
+            children: [
+              Expanded(child: _buildMethodItem(_methods[row * 2], s)),
+              SizedBox(width: s(8)),
+              Expanded(child: _buildMethodItem(_methods[row * 2 + 1], s)),
+            ],
+          ),
+        ],
+      ],
     );
   }
 
@@ -246,7 +305,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     switch (_method) {
       case PCWithdrawMethod.paypal:
         return _buildSimpleForm(
-          title: 'Email/Phone Number',
+          title: 'Email',
           hint: 'Please input your account ID',
           controller: _accountControllers[_method]!,
           keyboardType: TextInputType.emailAddress,
@@ -254,10 +313,10 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
         );
       case PCWithdrawMethod.cashApp:
         return _buildSimpleForm(
-          title: 'Cash App ID/Phone Number',
-          hint: 'Please input your \$Cashtag or phone',
+          title: 'Phone Number',
+          hint: 'Please input your 10-digit phone number',
           controller: _accountControllers[_method]!,
-          keyboardType: TextInputType.text,
+          keyboardType: TextInputType.phone,
           s: s,
         );
       case PCWithdrawMethod.pix:
@@ -272,14 +331,11 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
           s: s,
         );
       case PCWithdrawMethod.pagBank:
-        return _buildExtendedForm(
-          nameController: _pagBankNameController,
-          accountTypes: const ['CPF', 'Email', 'Phone'],
-          selectedType: _pagBankAccountType,
-          onTypeChanged: (value) => setState(() => _pagBankAccountType = value),
-          accountTitle: 'PagBank Account:',
-          accountHint: 'Please input your PagBank account',
-          accountController: _accountControllers[_method]!,
+        return _buildSimpleForm(
+          title: 'Email',
+          hint: 'Please input your account email',
+          controller: _accountControllers[_method]!,
+          keyboardType: TextInputType.emailAddress,
           s: s,
         );
     }
@@ -321,7 +377,18 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(height: s(8)),
+        SizedBox(height: s(20)),
+        _sectionTitle('CPF', s),
+        SizedBox(height: s(12)),
+        _buildInput(
+          controller: _cpfController,
+          hint: 'Enter 11-digit CPF number',
+          keyboardType: TextInputType.number,
+          s: s,
+        ),
+        SizedBox(height: s(12)),
+        _sectionTitle('Name', s),
+        SizedBox(height: s(12)),
         _buildInput(
           controller: nameController,
           hint: 'Name',
@@ -410,6 +477,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
         controller: controller,
         keyboardType: keyboardType,
         cursorColor: const Color(0xFF1486F8),
+        onChanged: (_) => setState(() => _invalidFields.remove(controller)),
         style: TextStyle(
           fontFamily: text_fontName,
           fontSize: s(16),
@@ -431,11 +499,21 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
           contentPadding: EdgeInsets.symmetric(horizontal: s(16)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(s(12)),
-            borderSide: BorderSide(color: const Color(0xFFECF3F6), width: s(1)),
+            borderSide: BorderSide(
+              color: _invalidFields.contains(controller)
+                  ? Colors.red
+                  : const Color(0xFFECF3F6),
+              width: s(1),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(s(12)),
-            borderSide: BorderSide(color: _methodColor(_method), width: s(1.5)),
+            borderSide: BorderSide(
+              color: _invalidFields.contains(controller)
+                  ? Colors.red
+                  : _methodColor(_method),
+              width: s(1.5),
+            ),
           ),
         ),
       ),
@@ -454,11 +532,15 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
             fit: BoxFit.contain,
           ),
           SizedBox(width: s(4)),
-          PCText(
-            text: 'We’ll only use this for sending your withdrawal',
-            size: s(12),
-            color: Colors.black,
-            weight: FontWeight.w400,
+          Flexible(
+            child: PCText(
+              text: 'We’ll only use this for sending your withdrawal',
+              size: s(12),
+              color: Colors.black,
+              weight: FontWeight.w400,
+              maxLines: 2,
+              align: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -469,25 +551,28 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     return SizedBox(
       width: double.infinity,
       height: s(52),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(s(26)),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1486F8), Color(0xFF2365EA)],
-          ),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
+      child: Opacity(
+        opacity: _canSubmit ? 1 : .45,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(s(26)),
-            onTap: _handleConfirm,
-            child: Center(
-              child: PCText(
-                text: 'Confirm',
-                size: s(16),
-                color: Colors.white,
-                weight: FontWeight.w700,
-                align: TextAlign.center,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1486F8), Color(0xFF2365EA)],
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(s(26)),
+              onTap: _canSubmit ? _handleConfirm : null,
+              child: Center(
+                child: PCText(
+                  text: 'Confirm',
+                  size: s(16),
+                  color: Colors.white,
+                  weight: FontWeight.w700,
+                  align: TextAlign.center,
+                ),
               ),
             ),
           ),
@@ -496,35 +581,71 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     );
   }
 
+  void _reject(TextEditingController controller, String message) {
+    controller.clear();
+    setState(() => _invalidFields.add(controller));
+    PCDialogTool.toast(context, message);
+  }
+
   void _handleConfirm() {
+    if (!_canSubmit || ModalRoute.of(context)?.isCurrent != true) return;
     FocusManager.instance.primaryFocus?.unfocus();
-
-    if ((_method == PCWithdrawMethod.pix &&
-            _pixNameController.text.trim().isEmpty) ||
-        (_method == PCWithdrawMethod.pagBank &&
-            _pagBankNameController.text.trim().isEmpty)) {
-      PCDialogTool.toast(context, 'Please input your name');
+    final controller = _accountControllers[_method]!;
+    final account = controller.text.trim();
+    const invalidFormat = 'The format you entered is incorrect.';
+    if (_method == PCWithdrawMethod.pix) {
+      if (!PCWithdrawValidation.cpf(_cpfController.text.trim())) {
+        _reject(_cpfController, 'Enter 11-digit CPF number');
+        return;
+      }
+      if (!PCWithdrawValidation.name(_pixNameController.text.trim())) {
+        _reject(_pixNameController, 'Enter the correct name');
+        return;
+      }
+      final valid = switch (_pixAccountType) {
+        'Email' => PCWithdrawValidation.email(account),
+        'Phone' => PCWithdrawValidation.pixPhone(account),
+        'CPF' => PCWithdrawValidation.cpf(account),
+        'EVP' => PCWithdrawValidation.evp(account),
+        _ => false,
+      };
+      if (!valid) {
+        _reject(controller, switch (_pixAccountType) {
+          'Phone' => 'Please enter a valid phone number starting with 55.',
+          'CPF' => 'Enter 11-digit CPF number',
+          'EVP' => 'Enter the correct EVP',
+          _ => invalidFormat,
+        });
+        return;
+      }
+    } else if (_method == PCWithdrawMethod.cashApp
+        ? !PCWithdrawValidation.cashPhone(account)
+        : !PCWithdrawValidation.email(account)) {
+      _reject(controller, invalidFormat);
       return;
     }
-
-    if (_accountControllers[_method]!.text.trim().isEmpty) {
-      PCDialogTool.toast(context, 'Please input your account ID');
+    // pc_act_* 的资源顺序为 PayPal、PiX、Cash App、PagBank，与枚举顺序不同。
+    PCAnalytics.event('input_account_page_c');
+    final paymentIndex = switch (_method) {
+      PCWithdrawMethod.paypal => 0,
+      PCWithdrawMethod.pix => 1,
+      PCWithdrawMethod.cashApp => 2,
+      PCWithdrawMethod.pagBank => 3,
+    };
+    final local = PCLocalProvider.instance;
+    local.pc_account_seled_index = paymentIndex;
+    unawaited(local.updateint(local.pc_account_seled_indexName, paymentIndex));
+    final details = PCWithdrawDetails(_method, account);
+    if (widget.onSubmitted != null) {
+      setState(() => _submitted = true);
+      widget.onSubmitted!(details);
       return;
     }
-
-    showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 180),
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(opacity: animation, child: child);
-      },
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return PCAccountFeedbackDialog(
-          onContinue: () => widget.onConfirm?.call(_method),
-        );
-      },
+    context.tipShow(
+      PCAccountFeedbackDialog(
+        maskedUserId: details.maskedAccount,
+        onContinue: () => widget.onConfirm?.call(_method),
+      ),
     );
   }
 

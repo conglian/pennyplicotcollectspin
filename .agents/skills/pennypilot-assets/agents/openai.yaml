@@ -1,0 +1,4 @@
+interface:
+  display_name: "PennyPilot 资源下载"
+  short_description: "从项目 Figma 下载 3 倍 PNG 并自动无损压缩、校验和导入"
+  default_prompt: "使用 $pennypilot-assets，从项目 Figma 下载指定节点的 3 倍 PNG，自动无损压缩、校验并导入资源目录。"

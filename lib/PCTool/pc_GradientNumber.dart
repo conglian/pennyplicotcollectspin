@@ -1,35 +1,41 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 
 import 'pc_stroke_text.dart';
 
+/// 带渐变和描边的数字滚动组件，数值变化时从当前显示值继续动画。
 class PCGradientNumberRoller extends StatefulWidget {
   // 支持num类型（int和double的父类）
   final num value;
   final int duration; // 动画持续时间(毫秒)
   final double fontSize; // 字体大小
+  final FontWeight fontWeight;
   final List<Color> gradientColors; // 渐变颜色列表
+  final Alignment gradientBegin;
+  final Alignment gradientEnd;
   final Color borderColor; // 边线颜色
   final double borderWidth; // 边线宽度
   final int decimalPlaces; // 小数位数，默认2位
   final num currentValue; // 初始值
-  final bool showDolas; // 初始值
+  final bool showDolas; // 是否显示美元符号
 
   const PCGradientNumberRoller({
-    Key? key,
+    super.key,
     required this.value,
     this.duration = 1000,
     this.fontSize = 24.0,
+    this.fontWeight = FontWeight.bold,
     this.gradientColors = const [Colors.red, Colors.yellow],
+    this.gradientBegin = Alignment.centerLeft,
+    this.gradientEnd = Alignment.centerRight,
     this.borderColor = Colors.black,
     this.borderWidth = 1.0,
     this.decimalPlaces = 2,
     this.currentValue = 0,
     this.showDolas = true,
-  }) : super(key: key);
+  });
 
   @override
-  _PCGradientNumberRollerState createState() => _PCGradientNumberRollerState();
+  State<PCGradientNumberRoller> createState() => _PCGradientNumberRollerState();
 }
 
 class _PCGradientNumberRollerState extends State<PCGradientNumberRoller>
@@ -61,7 +67,7 @@ class _PCGradientNumberRollerState extends State<PCGradientNumberRoller>
 
     // 初始值设置
     _previousValue = widget.currentValue;
-    _currentValue = 0;
+    _currentValue = widget.currentValue;
 
     // 开始动画
     _startAnimation();
@@ -70,8 +76,11 @@ class _PCGradientNumberRollerState extends State<PCGradientNumberRoller>
   @override
   void didUpdateWidget(PCGradientNumberRoller oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.duration != oldWidget.duration) {
+      _controller.duration = Duration(milliseconds: widget.duration);
+    }
     if (widget.value != oldWidget.value) {
-      _previousValue = oldWidget.value;
+      _previousValue = _currentValue;
       _startAnimation();
     }
   }
@@ -89,12 +98,8 @@ class _PCGradientNumberRollerState extends State<PCGradientNumberRoller>
 
   // 格式化数字，根据类型和小数位数处理
   String _formatNumber(num number) {
-    // 如果是整数类型且不需要小数位，直接返回整数格式
-    if (number is int && widget.decimalPlaces == 0) {
-      return '${widget.showDolas ? '' : ''}${number.toString()}';
-    }
-    // 否则按小数处理，保留指定小数位数
-    return '${widget.showDolas ? '' : ''}${number.toStringAsFixed(widget.decimalPlaces)}';
+    final prefix = widget.showDolas ? '\$' : '';
+    return '$prefix${number.toStringAsFixed(widget.decimalPlaces)}';
   }
 
   @override
@@ -103,32 +108,38 @@ class _PCGradientNumberRollerState extends State<PCGradientNumberRoller>
 
     return ShaderMask(
       // 渐变遮罩实现文字颜色渐变
-      shaderCallback: (bounds) =>
-          LinearGradient(colors: widget.gradientColors).createShader(bounds),
+      shaderCallback: (bounds) => LinearGradient(
+        begin: widget.gradientBegin,
+        end: widget.gradientEnd,
+        colors: widget.gradientColors,
+      ).createShader(bounds),
       child: Stack(
         children: [
           // 字体边线（通过描边实现）
-          Text(
-            displayNumber,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: widget.fontSize,
-              fontWeight: FontWeight.bold,
-              fontFamily: text_fontName,
-              // 描边样式设置
-              foreground: Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = widget.borderWidth
-                ..color = widget.borderColor,
+          if (widget.borderWidth > 0)
+            Text(
+              displayNumber,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: widget.fontSize,
+                fontWeight: widget.fontWeight,
+                height: 1.15,
+                fontFamily: text_fontName,
+                // 描边样式设置
+                foreground: Paint()
+                  ..style = PaintingStyle.stroke
+                  ..strokeWidth = widget.borderWidth
+                  ..color = widget.borderColor,
+              ),
             ),
-          ),
           // 渐变填充文字
           Text(
             displayNumber,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: widget.fontSize,
-              fontWeight: FontWeight.bold,
+              fontWeight: widget.fontWeight,
+              height: 1.15,
               fontFamily: text_fontName,
               color: Colors.white, // 颜色会被渐变遮罩覆盖
             ),

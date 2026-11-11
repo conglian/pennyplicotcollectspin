@@ -1,0 +1,36 @@
+[
+  {
+    "node": "613:283",
+    "scale": 3,
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_home_bubble_gold.png",
+    "width": 192,
+    "height": 192,
+    "original_bytes": 68981,
+    "output_bytes": 63883,
+    "saved_bytes": 5098,
+    "saved_percent": 7.39,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "05478df31a942cee62066a7767886d0aa4a6c89695a2baa39ff81a11d3a9e3ad",
+    "has_alpha_channel": true,
+    "top_left_alpha": 0
+  },
+  {
+    "node": "613:289",
+    "scale": 3,
+    "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_home_bubble_diamond.png",
+    "width": 192,
+    "height": 192,
+    "original_bytes": 69811,
+    "output_bytes": 64576,
+    "saved_bytes": 5235,
+    "saved_percent": 7.5,
+    "compressed": true,
+    "unchanged": false,
+    "lossless_verified": true,
+    "image_data_sha256": "c33be07ab8e1c949cfaa501d432ef4ac56a430a8206c518184ad4a6389abe06c",
+    "has_alpha_channel": true,
+    "top_left_alpha": 0
+  }
+]

@@ -1,0 +1,356 @@
+{
+  "figma_file_key": "i4Xsv9T30MQY7ySoExu4Fi",
+  "launch_node_id": "250:1296",
+  "logo_node_id": "250:1303",
+  "assets": [
+    {
+      "path": "assets/images/pc_luanch_bg.png",
+      "width": 1080,
+      "height": 2340,
+      "original_bytes": 3339317,
+      "output_bytes": 3118104,
+      "saved_bytes": 221213,
+      "saved_percent": 6.62,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "975a01fff0c935f037787764762bb3d41dcc900ccfae7ea63a8e100bef3679e8",
+      "name": "pc_luanch_bg",
+      "node_id": "250:1299",
+      "export_scale": 3,
+      "alpha_range": [
+        255,
+        255
+      ],
+      "pixel_sha256": "661c357bec21da5612f053f1ed83391bd0413f7a284008ed5f5cca67e3e33510"
+    },
+    {
+      "path": "assets/images/pc_logo_big.png",
+      "width": 1536,
+      "height": 1536,
+      "original_bytes": 3126687,
+      "output_bytes": 2921550,
+      "saved_bytes": 205137,
+      "saved_percent": 6.56,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "21299dae2ea730707b790abdd4a97291bba942f79c82ad992768f92aed6b8821",
+      "name": "pc_logo_big",
+      "node_id": "250:1303",
+      "export_scale": 3,
+      "alpha_range": [
+        255,
+        255
+      ],
+      "pixel_sha256": "4960a8c83e943f6160424475c8736211a5698ec584eee441e95773c5054dbd73"
+    },
+    {
+      "path": "assets/images/pc_launch_title.png",
+      "width": 804,
+      "height": 288,
+      "original_bytes": 375342,
+      "output_bytes": 346474,
+      "saved_bytes": 28868,
+      "saved_percent": 7.69,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "954436c52b3f5a39db579aa56f0543069c3f4e907d1e7f877ced8db0d5ef12fe",
+      "name": "pc_launch_title",
+      "node_id": "424:337",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_sha256": "ce42ca1fccd2c8a7f834456d4426d13edde6cb0ec863445a4e00163e6d5dd047"
+    },
+    {
+      "path": "assets/images/pc_launch_pig.png",
+      "width": 528,
+      "height": 489,
+      "original_bytes": 359017,
+      "output_bytes": 338397,
+      "saved_bytes": 20620,
+      "saved_percent": 5.74,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "bf2364119a5210f41355dd3313d6ff53d1089e900c5cade2398fee6c71c62707",
+      "name": "pc_launch_pig",
+      "node_id": "424:334",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_sha256": "1a043f392cec7bf424f69d59d8ccd07e8498c1b5986da2a863aa54e5b9b0dfaa"
+    },
+    {
+      "path": "assets/images/pc_launch_platform.png",
+      "width": 936,
+      "height": 336,
+      "original_bytes": 392652,
+      "output_bytes": 368097,
+      "saved_bytes": 24555,
+      "saved_percent": 6.25,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "c412176f4f6359f35b836411010abd40e1c6acdd7620afd5de85dc76324c80ce",
+      "name": "pc_launch_platform",
+      "node_id": "424:335",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_sha256": "3ca81dede4bfee1f24bac878754e59c739161627d0f615d765974516c095b25a"
+    },
+    {
+      "path": "assets/images/pc_logo_smail.png",
+      "width": 300,
+      "height": 300,
+      "original_bytes": 178617,
+      "output_bytes": 170181,
+      "saved_bytes": 8436,
+      "saved_percent": 4.72,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "eab63496e33989607a257177c5436072f651345d47b685f6bf3005064783ff67",
+      "name": "pc_logo_smail",
+      "node_id": "421:294",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        255
+      ],
+      "pixel_sha256": "81f8db347c1c263b6c747e7e4415e124d3bd9793f7aa369b582cc799ffedc6f6"
+    },
+    {
+      "path": "assets/images/pc_launch_shadow.png",
+      "width": 506,
+      "height": 188,
+      "original_bytes": 133407,
+      "output_bytes": 131507,
+      "saved_bytes": 1900,
+      "saved_percent": 1.42,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "3b055779f68afb00035fff768d35db029f87cdfcf98585badaa9e4ea30226e49",
+      "name": "pc_launch_shadow",
+      "node_id": "424:332",
+      "export_scale": 3,
+      "alpha_range": [
+        0,
+        233
+      ],
+      "pixel_sha256": "c4202a8c2ffa0a9d4474aa4add990b593fb77621254da3a133ab6a1737182e6c"
+    }
+  ],
+  "generated_platform_icons": [
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "width": 48,
+      "height": 48,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 5843,
+      "lossless_verified": true
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "width": 72,
+      "height": 72,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 12141,
+      "lossless_verified": true
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "width": 96,
+      "height": 96,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 20472,
+      "lossless_verified": true
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "width": 144,
+      "height": 144,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 42240,
+      "lossless_verified": true
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "width": 192,
+      "height": 192,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 70337,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "width": 40,
+      "height": 40,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 4180,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png",
+      "width": 60,
+      "height": 60,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 8732,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "width": 29,
+      "height": 29,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 2350,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "width": 58,
+      "height": 58,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 8198,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png",
+      "width": 87,
+      "height": 87,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 17153,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "width": 80,
+      "height": 80,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 14728,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png",
+      "width": 120,
+      "height": 120,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 30334,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png",
+      "width": 120,
+      "height": 120,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 30334,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "width": 180,
+      "height": 180,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 63062,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png",
+      "width": 20,
+      "height": 20,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 1208,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png",
+      "width": 40,
+      "height": 40,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 4180,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png",
+      "width": 76,
+      "height": 76,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 13397,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png",
+      "width": 152,
+      "height": 152,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 46734,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png",
+      "width": 167,
+      "height": 167,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 55256,
+      "lossless_verified": true
+    },
+    {
+      "path": "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "width": 1024,
+      "height": 1024,
+      "source": "assets/images/pc_logo_big.png",
+      "resampling": "LANCZOS",
+      "opaque_rgb": true,
+      "output_bytes": 1324738,
+      "lossless_verified": true
+    }
+  ]
+}

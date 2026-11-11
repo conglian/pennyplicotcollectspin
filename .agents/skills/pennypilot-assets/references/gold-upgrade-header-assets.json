@@ -1,0 +1,28 @@
+{
+  "fileKey": "i4Xsv9T30MQY7ySoExu4Fi",
+  "sessionId": "cbba9521-c792-44b3-b5e3-b22771f5e6a7",
+  "screen": "230:391",
+  "assets": [
+    {
+      "path": "/Users/aurastack/pennyplicotcollectspin/assets/images/pc_gold_upgrade_header.png",
+      "width": 1080,
+      "height": 240,
+      "original_bytes": 325323,
+      "output_bytes": 305947,
+      "saved_bytes": 19376,
+      "saved_percent": 5.96,
+      "compressed": true,
+      "unchanged": false,
+      "lossless_verified": true,
+      "image_data_sha256": "a986f2263d2f3e1a9f21647e3104a32c11802110809b3d5830b92fa887ba2b36",
+      "node_id": "231:456",
+      "scale": 3,
+      "export_method": "Figma exportAsync PNG SCALE3 contentsOnly; complete header subtree includes ribbon and both TEXT_PATH checkmark/title layers",
+      "logical_width": 360,
+      "logical_height": 80,
+      "has_alpha_channel": true,
+      "top_left_alpha": 0
+    }
+  ],
+  "description": "按用户要求，仅将金猪升级标题条的对勾、弧形文字及丝带背景整体导出，不含页面背景、账号、金额、日期或进度。"
+}
