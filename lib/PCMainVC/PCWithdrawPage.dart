@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../PCTool/PCAdaptiveLayout.dart';
 import '../PCTool/PCAnalytics.dart';
 
 import '../PCDialog/PCCash/PCAccountFeedbackDialog.dart';
+import '../PCTool/PCWithdrawMethod.dart';
 import '../PCTool/PCWithdrawValidation.dart';
 import '../PCTool/pc_LocalProvider.dart';
 import '../PCTool/pc_extension_help.dart';
@@ -12,14 +12,13 @@ import '../PCTool/pc_img.dart';
 import '../PCTool/pc_stroke_text.dart';
 import '../PCTool/pc_text.dart';
 
-enum PCWithdrawMethod { paypal, cashApp, pix, pagBank }
+export '../PCTool/PCWithdrawMethod.dart';
 
-/// 当前表单提交值；完整账号仅在当前路由回调中传递。
+/// 当前表单提交值；完整账号只供本地收款资料使用。
 class PCWithdrawDetails {
   const PCWithdrawDetails(this.method, this.account);
   final PCWithdrawMethod method;
   final String account;
-  String get maskedAccount => PCWithdrawValidation.mask(account);
 }
 
 class PCWithdrawPage extends StatefulWidget {
@@ -30,6 +29,8 @@ class PCWithdrawPage extends StatefulWidget {
   /// 恢复为确认成功弹窗的背景时不算再次进入资料填写页。
   final bool trackExposure;
   final bool isGuide;
+
+  /// 兼容调用方提供的地区；地区不再改变渠道列表。
   final String? countryCode;
 
   const PCWithdrawPage({
@@ -48,19 +49,14 @@ class PCWithdrawPage extends StatefulWidget {
 
 class _PCWithdrawPageState extends State<PCWithdrawPage> {
   late PCWithdrawMethod _method;
-  String _pixAccountType = 'Email';
-  final TextEditingController _cpfController = TextEditingController();
+  final _formKey = GlobalKey();
   final Set<TextEditingController> _invalidFields = {};
   bool _submitted = false;
-  // 四个渠道同时展示；地区只决定初始选中项。
-  static const _methods = PCWithdrawMethod.values;
 
   final Map<PCWithdrawMethod, TextEditingController> _accountControllers = {
     for (final method in PCWithdrawMethod.values)
       method: TextEditingController(),
   };
-  final TextEditingController _pixNameController = TextEditingController();
-  final TextEditingController _pagBankNameController = TextEditingController();
 
   @override
   void initState() {
@@ -72,15 +68,8 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
         PCAnalytics.event('input_account_page');
       }
     });
-    _method = widget.countryCode?.toUpperCase() == 'BR'
-        ? PCWithdrawMethod.pagBank
-        : widget.initialMethod;
-    for (final controller in [
-      ..._accountControllers.values,
-      _pixNameController,
-      _pagBankNameController,
-      _cpfController,
-    ]) {
+    _method = widget.initialMethod;
+    for (final controller in _accountControllers.values) {
       controller.addListener(_formChanged);
     }
   }
@@ -90,20 +79,13 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
   }
 
   bool get _canSubmit =>
-      !_submitted &&
-      _accountControllers[_method]!.text.trim().isNotEmpty &&
-      (_method != PCWithdrawMethod.pix ||
-          (_cpfController.text.trim().isNotEmpty &&
-              _pixNameController.text.trim().isNotEmpty));
+      !_submitted && _accountControllers[_method]!.text.trim().isNotEmpty;
 
   @override
   void dispose() {
     for (final controller in _accountControllers.values) {
       controller.dispose();
     }
-    _pixNameController.dispose();
-    _pagBankNameController.dispose();
-    _cpfController.dispose();
     super.dispose();
   }
 
@@ -204,57 +186,60 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
           colors: [Color(0xFFF5F9FC), Color(0xFFE9F7FF)],
         ),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(s(16), s(24), s(16), s(16)),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: (constraints.maxHeight - s(40)).clamp(
-                  0,
-                  double.infinity,
-                ),
+      child: SafeArea(
+        top: false,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final form = Padding(
+              key: _formKey,
+              padding: EdgeInsets.fromLTRB(s(16), s(24), s(16), s(12)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionTitle('Payment Method', s),
+                  SizedBox(height: s(12)),
+                  _buildMethodPicker(s),
+                  _buildSelectedForm(s),
+                ],
               ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sectionTitle('Payment Method', s),
-                    SizedBox(height: s(12)),
-                    _buildMethodPicker(s),
-                    _buildSelectedForm(s),
-                    const Spacer(),
-                    SizedBox(height: s(28)),
-                    _buildPrivacyNote(s),
-                    SizedBox(height: s(17)),
-                    _buildConfirmButton(s),
-                  ],
-                ),
+            );
+            final footer = Padding(
+              padding: EdgeInsets.all(s(16)),
+              child: Column(
+                children: [
+                  _buildPrivacyNote(s),
+                  SizedBox(height: s(17)),
+                  _buildConfirmButton(s),
+                ],
               ),
-            ),
-          );
-        },
+            );
+            // Scaffold 负责避开键盘，SafeArea 负责避开系统导航栏。
+            // 可用高度过小时让表单和提交按钮一起滚动。
+            if (constraints.maxHeight < s(132)) {
+              return SingleChildScrollView(
+                child: Column(children: [form, footer]),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: SingleChildScrollView(child: form)),
+                footer,
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildMethodPicker(double Function(double) s) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var row = 0; row < 2; row++) ...[
-          if (row > 0) SizedBox(height: s(8)),
-          Row(
-            children: [
-              Expanded(child: _buildMethodItem(_methods[row * 2], s)),
-              SizedBox(width: s(8)),
-              Expanded(child: _buildMethodItem(_methods[row * 2 + 1], s)),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
+  Widget _buildMethodPicker(double Function(double) s) => Row(
+    children: [
+      Expanded(child: _buildMethodItem(PCWithdrawMethod.paypal, s)),
+      SizedBox(width: s(8)),
+      Expanded(child: _buildMethodItem(PCWithdrawMethod.cashApp, s)),
+    ],
+  );
 
   Widget _buildMethodItem(PCWithdrawMethod method, double Function(double) s) {
     final selected = method == _method;
@@ -281,7 +266,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             PCImg(
-              name: _methodAsset(method),
+              name: method.formAsset,
               width: s(32),
               height: s(32),
               fit: BoxFit.contain,
@@ -289,7 +274,7 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
             SizedBox(width: s(4)),
             Flexible(
               child: PCText(
-                text: _methodName(method),
+                text: method.label,
                 size: s(20),
                 color: Colors.black,
                 weight: FontWeight.w600,
@@ -301,45 +286,15 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     );
   }
 
-  Widget _buildSelectedForm(double Function(double) s) {
-    switch (_method) {
-      case PCWithdrawMethod.paypal:
-        return _buildSimpleForm(
-          title: 'Email',
-          hint: 'Please input your account ID',
-          controller: _accountControllers[_method]!,
-          keyboardType: TextInputType.emailAddress,
-          s: s,
-        );
-      case PCWithdrawMethod.cashApp:
-        return _buildSimpleForm(
-          title: 'Phone Number',
-          hint: 'Please input your 10-digit phone number',
-          controller: _accountControllers[_method]!,
-          keyboardType: TextInputType.phone,
-          s: s,
-        );
-      case PCWithdrawMethod.pix:
-        return _buildExtendedForm(
-          nameController: _pixNameController,
-          accountTypes: const ['Email', 'Phone', 'CPF', 'EVP'],
-          selectedType: _pixAccountType,
-          onTypeChanged: (value) => setState(() => _pixAccountType = value),
-          accountTitle: 'Email/Phone Number:',
-          accountHint: 'Please input your account ID',
-          accountController: _accountControllers[_method]!,
-          s: s,
-        );
-      case PCWithdrawMethod.pagBank:
-        return _buildSimpleForm(
-          title: 'Email',
-          hint: 'Please input your account email',
-          controller: _accountControllers[_method]!,
-          keyboardType: TextInputType.emailAddress,
-          s: s,
-        );
-    }
-  }
+  Widget _buildSelectedForm(double Function(double) s) => _buildSimpleForm(
+    title: 'Email/Phone Number',
+    hint: 'Please input your account ID',
+    controller: _accountControllers[_method]!,
+    keyboardType: _method == PCWithdrawMethod.cashApp
+        ? TextInputType.phone
+        : TextInputType.emailAddress,
+    s: s,
+  );
 
   Widget _buildSimpleForm({
     required String title,
@@ -361,107 +316,6 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
           s: s,
         ),
       ],
-    );
-  }
-
-  Widget _buildExtendedForm({
-    required TextEditingController nameController,
-    required List<String> accountTypes,
-    required String selectedType,
-    required ValueChanged<String> onTypeChanged,
-    required String accountTitle,
-    required String accountHint,
-    required TextEditingController accountController,
-    required double Function(double) s,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(height: s(20)),
-        _sectionTitle('CPF', s),
-        SizedBox(height: s(12)),
-        _buildInput(
-          controller: _cpfController,
-          hint: 'Enter 11-digit CPF number',
-          keyboardType: TextInputType.number,
-          s: s,
-        ),
-        SizedBox(height: s(12)),
-        _sectionTitle('Name', s),
-        SizedBox(height: s(12)),
-        _buildInput(
-          controller: nameController,
-          hint: 'Name',
-          keyboardType: TextInputType.name,
-          s: s,
-        ),
-        SizedBox(height: s(28)),
-        _sectionTitle('Account Type', s),
-        SizedBox(height: s(12)),
-        Wrap(
-          spacing: s(8),
-          runSpacing: s(8),
-          children: accountTypes
-              .map(
-                (type) => _buildTypeChip(
-                  type: type,
-                  selected: type == selectedType,
-                  onTap: () => onTypeChanged(type),
-                  s: s,
-                ),
-              )
-              .toList(),
-        ),
-        SizedBox(height: s(24)),
-        _sectionTitle(accountTitle, s),
-        SizedBox(height: s(12)),
-        _buildInput(
-          controller: accountController,
-          hint: accountHint,
-          keyboardType: TextInputType.text,
-          s: s,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTypeChip({
-    required String type,
-    required bool selected,
-    required VoidCallback onTap,
-    required double Function(double) s,
-  }) {
-    final chipWidth = switch (type) {
-      'Phone' => 80.0,
-      'Email' => 72.0,
-      'CPF' => 68.0,
-      'EVP' => 66.0,
-      _ => 80.0,
-    };
-    return InkWell(
-      borderRadius: BorderRadius.circular(s(18)),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        width: s(chipWidth),
-        height: s(36),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(s(18)),
-          border: Border.all(
-            color: selected ? const Color(0xFF1486F8) : Colors.transparent,
-            width: s(1.5),
-          ),
-        ),
-        child: PCText(
-          text: type,
-          size: s(14),
-          color: Colors.black,
-          weight: FontWeight.w400,
-          align: TextAlign.center,
-        ),
-      ),
     );
   }
 
@@ -587,63 +441,50 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     PCDialogTool.toast(context, message);
   }
 
-  void _handleConfirm() {
+  Future<void> _handleConfirm() async {
     if (!_canSubmit || ModalRoute.of(context)?.isCurrent != true) return;
     FocusManager.instance.primaryFocus?.unfocus();
     final controller = _accountControllers[_method]!;
     final account = controller.text.trim();
     const invalidFormat = 'The format you entered is incorrect.';
-    if (_method == PCWithdrawMethod.pix) {
-      if (!PCWithdrawValidation.cpf(_cpfController.text.trim())) {
-        _reject(_cpfController, 'Enter 11-digit CPF number');
-        return;
-      }
-      if (!PCWithdrawValidation.name(_pixNameController.text.trim())) {
-        _reject(_pixNameController, 'Enter the correct name');
-        return;
-      }
-      final valid = switch (_pixAccountType) {
-        'Email' => PCWithdrawValidation.email(account),
-        'Phone' => PCWithdrawValidation.pixPhone(account),
-        'CPF' => PCWithdrawValidation.cpf(account),
-        'EVP' => PCWithdrawValidation.evp(account),
-        _ => false,
-      };
-      if (!valid) {
-        _reject(controller, switch (_pixAccountType) {
-          'Phone' => 'Please enter a valid phone number starting with 55.',
-          'CPF' => 'Enter 11-digit CPF number',
-          'EVP' => 'Enter the correct EVP',
-          _ => invalidFormat,
-        });
-        return;
-      }
-    } else if (_method == PCWithdrawMethod.cashApp
-        ? !PCWithdrawValidation.cashPhone(account)
-        : !PCWithdrawValidation.email(account)) {
+    if (PCWithdrawValidation.isLegacyMask(account) ||
+        (_method == PCWithdrawMethod.cashApp
+            ? !PCWithdrawValidation.cashPhone(account)
+            : !PCWithdrawValidation.email(account))) {
       _reject(controller, invalidFormat);
       return;
     }
-    // pc_act_* 的资源顺序为 PayPal、PiX、Cash App、PagBank，与枚举顺序不同。
     PCAnalytics.event('input_account_page_c');
-    final paymentIndex = switch (_method) {
-      PCWithdrawMethod.paypal => 0,
-      PCWithdrawMethod.pix => 1,
-      PCWithdrawMethod.cashApp => 2,
-      PCWithdrawMethod.pagBank => 3,
-    };
-    final local = PCLocalProvider.instance;
-    local.pc_account_seled_index = paymentIndex;
-    unawaited(local.updateint(local.pc_account_seled_indexName, paymentIndex));
     final details = PCWithdrawDetails(_method, account);
+    setState(() => _submitted = true);
     if (widget.onSubmitted != null) {
-      setState(() => _submitted = true);
       widget.onSubmitted!(details);
       return;
     }
+    final local = PCLocalProvider.instance;
+    try {
+      if (!await local.updateint(
+            local.pc_account_seled_indexName,
+            details.method.storageIndex,
+          ) ||
+          !await local.updateString(local.pc_account_idName, details.account)) {
+        throw StateError('Unable to save payment information');
+      }
+      await local.init();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _submitted = false);
+        PCDialogTool.toast(
+          context,
+          'Unable to save progress. Please try again.',
+        );
+      }
+      return;
+    }
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
     context.tipShow(
       PCAccountFeedbackDialog(
-        maskedUserId: details.maskedAccount,
+        account: details.account,
         onContinue: () => widget.onConfirm?.call(_method),
       ),
     );
@@ -658,24 +499,8 @@ class _PCWithdrawPageState extends State<PCWithdrawPage> {
     );
   }
 
-  String _methodName(PCWithdrawMethod method) => switch (method) {
-    PCWithdrawMethod.paypal => 'PayPal',
-    PCWithdrawMethod.cashApp => 'Cash App',
-    PCWithdrawMethod.pix => 'PiX',
-    PCWithdrawMethod.pagBank => 'PagBank',
-  };
-
-  String _methodAsset(PCWithdrawMethod method) => switch (method) {
-    PCWithdrawMethod.paypal => 'pc_withdraw_paypal_2x',
-    PCWithdrawMethod.cashApp => 'pc_withdraw_cashapp_2x',
-    PCWithdrawMethod.pix => 'pc_withdraw_pix_2x',
-    PCWithdrawMethod.pagBank => 'pc_withdraw_pagbank_2x',
-  };
-
   Color _methodColor(PCWithdrawMethod method) => switch (method) {
     PCWithdrawMethod.paypal => const Color(0xFF009CDE),
     PCWithdrawMethod.cashApp => const Color(0xFF0ABE4D),
-    PCWithdrawMethod.pix => const Color(0xFF2CBFA9),
-    PCWithdrawMethod.pagBank => const Color(0xFFD7D936),
   };
 }

@@ -11,7 +11,7 @@ import '../../PCTool/pc_text.dart';
 import 'PCDialogTool.dart';
 
 /// 3.7收款资料表单（Apply For Payout，Figma 210:678）。
-/// 新账号可选四渠道；已有资料仅显示原渠道并回填，原脱敏账号不改可确认。
+/// 支持 PayPal 和 Cash App；渠道仍有效且账号完整时才回填。
 /// 主按钮校验后返回PCWithdrawDetails，关闭返回null；此弹窗不保存或上传资料。
 class PCProcessAccountDialog extends StatefulWidget {
   const PCProcessAccountDialog({
@@ -30,7 +30,11 @@ class PCProcessAccountDialog extends StatefulWidget {
 
 class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
   late PCWithdrawMethod _method;
-  late TextEditingController _account;
+  final _accounts = {
+    for (final method in PCWithdrawMethod.values)
+      method: TextEditingController(),
+  };
+  TextEditingController get _account => _accounts[_method]!;
   bool _invalid = false;
   bool _submitted = false;
   static const _error = 'Please enter the correct withdrawal account number';
@@ -38,40 +42,35 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
   @override
   void initState() {
     super.initState();
-    _method = widget.hasSavedAccount
-        ? switch (widget.initialPaymentIndex) {
-            1 => PCWithdrawMethod.pix,
-            2 => PCWithdrawMethod.cashApp,
-            3 => PCWithdrawMethod.pagBank,
-            _ => PCWithdrawMethod.paypal,
-          }
-        : PCWithdrawMethod.paypal;
-    _account = TextEditingController(
-      text: widget.hasSavedAccount ? widget.initialAccount : '',
+    final savedMethod = PCWithdrawMethod.fromStorageIndex(
+      widget.initialPaymentIndex,
     );
+    _method = widget.hasSavedAccount
+        ? savedMethod ?? PCWithdrawMethod.paypal
+        : PCWithdrawMethod.paypal;
+    if (widget.hasSavedAccount && savedMethod != null) {
+      _account.text = PCWithdrawValidation.fullAccount(widget.initialAccount);
+    }
   }
 
   @override
   void dispose() {
-    _account.dispose();
+    for (final account in _accounts.values) {
+      account.dispose();
+    }
     super.dispose();
   }
 
   void _submit() {
     if (_submitted) return;
     final value = _account.text.trim();
-    final unchanged =
-        widget.hasSavedAccount &&
-        value.isNotEmpty &&
-        value == widget.initialAccount.trim();
     final validFormat = switch (_method) {
       PCWithdrawMethod.paypal => PCWithdrawValidation.email(value),
       PCWithdrawMethod.cashApp => PCWithdrawValidation.cashPhone(value),
-      PCWithdrawMethod.pix || PCWithdrawMethod.pagBank =>
-        PCWithdrawValidation.email(value) ||
-            PCWithdrawValidation.cashPhone(value),
     };
-    if (!unchanged && (value.length < 10 || !validFormat)) {
+    if (value.length < 10 ||
+        !validFormat ||
+        PCWithdrawValidation.isLegacyMask(value)) {
       setState(() => _invalid = true);
       PCDialogTool.toast(context, _error);
       return;
@@ -89,9 +88,6 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
   );
 
   Widget _buildDialog(BuildContext context) {
-    final methods = widget.hasSavedAccount
-        ? [_method]
-        : PCWithdrawMethod.values;
     return Material(
       type: MaterialType.transparency,
       child: SafeArea(
@@ -125,7 +121,7 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
                       child: SizedBox(
                         width: canvasWidth,
                         height: 404,
-                        child: _accountCard(methods),
+                        child: _accountCard(),
                       ),
                     ),
                   ),
@@ -138,7 +134,7 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
     );
   }
 
-  Widget _accountCard(List<PCWithdrawMethod> methods) => Container(
+  Widget _accountCard() => Container(
     height: 404,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
@@ -186,49 +182,18 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
         const SizedBox(height: 12),
         _label('Payment Method'),
         const SizedBox(height: 8),
-        if (methods.length == 1)
-          SizedBox(
-            height: 102,
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 160,
-                height: 44,
-                child: _methodItem(methods.first),
-              ),
-            ),
-          )
-        else ...[
-          SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                Expanded(child: _methodItem(methods[0])),
-                const SizedBox(width: 8),
-                Expanded(child: _methodItem(methods[1])),
-              ],
-            ),
+        SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Expanded(child: _methodItem(PCWithdrawMethod.paypal)),
+              const SizedBox(width: 8),
+              Expanded(child: _methodItem(PCWithdrawMethod.cashApp)),
+            ],
           ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 48,
-            child: Row(
-              children: [
-                Expanded(child: _methodItem(methods[2])),
-                const SizedBox(width: 8),
-                Expanded(child: _methodItem(methods[3])),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        _label(
-          _method == PCWithdrawMethod.paypal
-              ? 'Email:'
-              : _method == PCWithdrawMethod.cashApp
-              ? 'Phone Number:'
-              : 'Email/Phone Number:',
         ),
+        const SizedBox(height: 12),
+        _label('Email/Phone Number'),
         const SizedBox(height: 8),
         SizedBox(
           height: 48,
@@ -337,13 +302,6 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
 
   Widget _methodItem(PCWithdrawMethod method) {
     final selected = method == _method;
-    final names = ['PayPal', 'Cash App', 'PiX', 'PagBank'];
-    final assets = [
-      'pc_withdraw_paypal_2x',
-      'pc_withdraw_cashapp_2x',
-      'pc_withdraw_pix_2x',
-      'pc_withdraw_pagbank_2x',
-    ];
     return ParticleButton(
       key: ValueKey('pcProcessMethod${method.index}'),
       onTap: () {
@@ -368,7 +326,7 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             PCImg(
-              name: assets[method.index],
+              name: method.formAsset,
               width: 25,
               height: 25,
               fit: BoxFit.contain,
@@ -376,7 +334,7 @@ class _PCProcessAccountDialogState extends State<PCProcessAccountDialog> {
             const SizedBox(width: 4),
             Flexible(
               child: PCText(
-                text: names[method.index],
+                text: method.label,
                 size: 15,
                 color: Colors.black,
                 weight: FontWeight.w600,

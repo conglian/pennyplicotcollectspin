@@ -51,8 +51,6 @@ Future<void> main() async {
   // 1. 创建LocalStorageProvider实例并初始化（加载本地数据）
   final localStorageProvider = PCLocalProvider.instance;
   await localStorageProvider.init();
-  // 在启动页写入安装标记之前判定首次安装；复用本地标准TBA安装协议。
-  await PCAnalytics.install();
   // await trigger.init();
   await PCFKManger().initFKJson();
   // 模拟排队完成

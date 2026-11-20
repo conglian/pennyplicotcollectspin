@@ -239,7 +239,10 @@ class PCHomeRewardController extends ChangeNotifier {
 
   Future<PCQuizReward?> beginFreeReward() => reserveFreeReward();
 
-  Future<PCQuizReward?> claim(PCQuizReward reward) async {
+  Future<PCQuizReward?> claim(
+    PCQuizReward reward, {
+    bool doubleGold = false,
+  }) async {
     if (_busy || _claimInFlight) return null;
     _claimInFlight = true;
     _busy = true;
@@ -287,16 +290,17 @@ class PCHomeRewardController extends ChangeNotifier {
         await _refresh();
         return null;
       }
+      final settled = reward.forSettlement(doubleGold: doubleGold);
       double add(double value, double target) =>
-          min(target, ((value + reward.amount) * 100).round() / 100);
+          min(target, ((value + settled.amount) * 100).round() / 100);
       final balance = reward.type == PCQuizRewardType.cash
           ? add(before.balance, PCNumberHelpers().pc_firstTarget)
           : before.balance;
       final diamonds = reward.type == PCQuizRewardType.diamond
-          ? ((before.diamonds + reward.amount) * 100).round() / 100
+          ? ((before.diamonds + settled.amount) * 100).round() / 100
           : before.diamonds;
       final gold = reward.type == PCQuizRewardType.gold
-          ? ((before.gold + reward.amount) * 100).round() / 100
+          ? ((before.gold + settled.amount) * 100).round() / 100
           : before.gold;
       final nextLevel = max(
         before.level,
@@ -322,7 +326,7 @@ class PCHomeRewardController extends ChangeNotifier {
       await _stored(_prefs!.setString(journalKey, jsonEncode(journal)));
       await _applyJournal(journal);
       await onSync?.call();
-      return reward;
+      return settled;
     } finally {
       _claimInFlight = false;
       _busy = false;

@@ -8,24 +8,22 @@ import '../../PCTool/pc_img.dart';
 import '../../PCTool/pc_text.dart';
 import 'PCOtherDialogWidgets.dart';
 
-enum _PCSettingsInfo { privacy, contact, terms }
+enum _PCSettingsInfo { privacy, terms }
 
 /// 首页「Setting」设置弹窗：音效、背景音乐分别切换并立即保存到本地。
-/// Privacy Policy、Terms of Use和Contact Us复用传入入口；未配置时面板内提示。
-/// 右上角关闭，底部用户条例链接独立于联系入口。
+/// Privacy Policy 和 Terms of Use 行各自打开对应页面，右上角关闭弹窗。
 class PCSettingsDialog extends StatefulWidget {
   const PCSettingsDialog({
     super.key,
     this.onBackgroundMusicChanged,
     this.onSoundEffectsChanged,
     this.onPrivacyPolicy,
-    this.onContactUs,
     this.onTermsOfUse,
   });
 
   final Future<void> Function(bool enabled)? onBackgroundMusicChanged;
   final Future<void> Function(bool enabled)? onSoundEffectsChanged;
-  final Future<void> Function()? onPrivacyPolicy, onContactUs, onTermsOfUse;
+  final Future<void> Function()? onPrivacyPolicy, onTermsOfUse;
 
   @override
   State<PCSettingsDialog> createState() => _PCSettingsDialogState();
@@ -89,10 +87,6 @@ class _PCSettingsDialogState extends State<PCSettingsDialog> {
       _PCSettingsInfo.privacy => (
         widget.onPrivacyPolicy,
         'Privacy Policy is not available yet.',
-      ),
-      _PCSettingsInfo.contact => (
-        widget.onContactUs,
-        'Contact details are not available yet.',
       ),
       _PCSettingsInfo.terms => (
         widget.onTermsOfUse,
@@ -189,26 +183,6 @@ class _PCSettingsDialogState extends State<PCSettingsDialog> {
             height: 56,
             child: _infoRow(privacy: false),
           ),
-          Positioned(
-            left: 60,
-            top: 339,
-            width: 240,
-            height: 44,
-            child: Material(
-              type: MaterialType.transparency,
-              child: PCUnderlineTextButton(
-                key: const ValueKey('pcSettingsTerms'),
-                text: 'Terms of Use',
-                fontSize: 12,
-                textColor: const Color(0xFFFFF5B1),
-                // 保留44高命中区，文案上移避开面板底部金边。
-                padding: const EdgeInsets.only(bottom: 20),
-                onPressed: _openingInfo
-                    ? null
-                    : () => _openInfo(_PCSettingsInfo.terms),
-              ),
-            ),
-          ),
           if (_message != null)
             Positioned(
               left: 52,
@@ -282,14 +256,13 @@ class _PCSettingsDialogState extends State<PCSettingsDialog> {
   }
 
   Widget _infoRow({required bool privacy}) => Semantics(
-    label: privacy ? 'Privacy Policy' : 'Contact Us',
+    label: privacy ? 'Privacy Policy' : 'Terms of Use',
     button: true,
     child: ParticleButton(
-      key: ValueKey(privacy ? 'pcSettingsPrivacy' : 'pcSettingsContact'),
+      key: ValueKey(privacy ? 'pcSettingsPrivacy' : 'pcSettingsTerms'),
       enabled: !_openingInfo,
-      onTap: () => _openInfo(
-        privacy ? _PCSettingsInfo.privacy : _PCSettingsInfo.contact,
-      ),
+      onTap: () =>
+          _openInfo(privacy ? _PCSettingsInfo.privacy : _PCSettingsInfo.terms),
       child: Stack(
         children: [
           const Positioned.fill(child: PCImg(name: 'pc_settings_row_bg')),
@@ -311,7 +284,7 @@ class _PCSettingsDialogState extends State<PCSettingsDialog> {
             top: 18,
             height: 20,
             child: PCText(
-              text: privacy ? 'Privacy Policy' : 'Contact Us',
+              text: privacy ? 'Privacy Policy' : 'Terms of Use',
               size: 14,
               color: Colors.white,
               weight: FontWeight.w700,

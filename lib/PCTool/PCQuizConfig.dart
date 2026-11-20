@@ -40,6 +40,18 @@ class PCQuizReward {
   final PCQuizRewardType type;
   final double amount;
   final int questionIndex;
+
+  /// 双倍结算沿用原奖励 ID，现金和钻石始终按原金额结算。
+  PCQuizReward forSettlement({required bool doubleGold}) =>
+      doubleGold && type == PCQuizRewardType.gold
+      ? PCQuizReward(
+          id: id,
+          type: type,
+          amount: ((amount * 2) * 100).round() / 100,
+          questionIndex: questionIndex,
+        )
+      : this;
+
   String get amountText => format(amount);
   String get asset => switch (type) {
     PCQuizRewardType.cash => 'pc_quiz_cash_reward',

@@ -88,6 +88,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.google.firebase.messaging.FirebaseMessaging;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -103,6 +105,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.lang.Override;
 
 import io.flutter.FlutterInjector;
@@ -134,6 +137,8 @@ public class FlutterLocalNotificationsPlugin
 
   static final String PAYLOAD = "payload";
   static final String NOTIFICATION_ID = "notificationId";
+  private static final String MEDIA_COMPANION = "com.dexterous.flutterlocalnotifications.MEDIA_COMPANION";
+  private static final String DISMISS_TOKEN = "pennyNotificationDismissToken";
   static final String NOTIFICATION_TAG = "notificationTag";
   static final String CANCEL_NOTIFICATION = "cancelNotification";
 
@@ -261,20 +266,19 @@ public class FlutterLocalNotificationsPlugin
 
   public static void createNotification(
       Context context, NotificationDetails notificationDetails, NotificationBuildListener listener) {
+    createNotification(context, notificationDetails, null, listener);
+  }
+
+  private static void createNotification(
+      Context context, NotificationDetails notificationDetails, String dismissToken,
+      NotificationBuildListener listener) {
     NotificationChannelDetails notificationChannelDetails = NotificationChannelDetails
         .fromNotificationDetails(notificationDetails);
     if (canCreateNotificationChannel(context, notificationChannelDetails)) {
       setupNotificationChannel(context, notificationChannelDetails);
     }
-    Intent intent = getLaunchIntent(context);
-    intent.setAction(SELECT_NOTIFICATION);
-    intent.putExtra(NOTIFICATION_ID, notificationDetails.id);
-    intent.putExtra(PAYLOAD, notificationDetails.payload);
-    int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-    if (VERSION.SDK_INT >= VERSION_CODES.M) {
-      flags |= PendingIntent.FLAG_IMMUTABLE;
-    }
-    PendingIntent pendingIntent = PendingIntent.getActivity(context, notificationDetails.id, intent, flags);
+    PendingIntent pendingIntent = notificationContentIntent(
+        context, notificationDetails.id, notificationDetails.payload, false, dismissToken);
     DefaultStyleInformation defaultStyleInformation = (DefaultStyleInformation) notificationDetails.styleInformation;
     NotificationCompat.Builder builder = new NotificationCompat.Builder(context, notificationDetails.channelId)
         .setContentTitle(
@@ -989,6 +993,24 @@ public class FlutterLocalNotificationsPlugin
     return packageManager.getLaunchIntentForPackage(packageName);
   }
 
+  static PendingIntent notificationContentIntent(
+      Context context, int id, String payload, boolean media, String dismissToken) {
+    Intent intent = getLaunchIntent(context);
+    if (intent == null) return null;
+    intent.setAction(SELECT_NOTIFICATION);
+    if (media) intent.addCategory(MEDIA_COMPANION);
+    if (dismissToken != null) {
+      // The category gives each delivered card its own PendingIntent identity.
+      intent.addCategory(DISMISS_TOKEN + "." + dismissToken);
+      intent.putExtra(DISMISS_TOKEN, dismissToken);
+    }
+    intent.putExtra(NOTIFICATION_ID, id);
+    intent.putExtra(PAYLOAD, payload);
+    int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+    if (VERSION.SDK_INT >= VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
+    return PendingIntent.getActivity(context, id, intent, flags);
+  }
+
   private static void setStyle(
       Context context,
       NotificationDetails notificationDetails,
@@ -1385,18 +1407,22 @@ public class FlutterLocalNotificationsPlugin
 
   public static void showNotification(
       Context context, NotificationDetails notificationDetails, @Nullable String broadcastAction) {
+    PennyNotificationAnalytics.applyNextLocalCopy(context, notificationDetails);
+    String dismissToken = BooleanUtils.getValue(notificationDetails.autoCancel)
+            && !BooleanUtils.getValue(notificationDetails.ongoing)
+        ? UUID.randomUUID().toString() : null;
     // noinspection Convert2Lambda
-    createNotification(context, notificationDetails, new NotificationBuildListener() {
+    createNotification(context, notificationDetails, dismissToken, new NotificationBuildListener() {
       @Override
       public void complete(Notification notification) {
-        NotificationManagerCompat notificationManagerCompat = getNotificationManager(context);
-        if (notificationDetails.tag != null) {
-          notificationManagerCompat.notify(
-              notificationDetails.tag, notificationDetails.id, notification);
-        } else {
-          notificationManagerCompat.notify(notificationDetails.id, notification);
+        synchronized (PennyNotificationAnalytics.class) {
+          int displayId = PennyNotificationAnalytics.prepareDispatch(
+              context, notificationDetails, broadcastAction, dismissToken);
+          if (displayId < 0) return;
+          getNotificationManager(context).notify(notificationDetails.tag, displayId, notification);
         }
         PennyNotificationAnalytics.recordShown(context, notificationDetails, broadcastAction);
+        PennyMediaNotification.showForHost(context, notificationDetails, broadcastAction);
         FlutterFCMPlugin.setMessageReceivedNum(context, notificationDetails.payload,
                 FlutterFCMPlugin.getMessageReceivedNum(context, notificationDetails.payload) + 1);
       }
@@ -1512,10 +1538,12 @@ public class FlutterLocalNotificationsPlugin
 
     mainActivity = binding.getActivity();
     Intent mainActivityIntent = mainActivity.getIntent();
-    if (!launchedActivityFromHistory(mainActivityIntent)) {
+    if (mainActivityIntent != null && !launchedActivityFromHistory(mainActivityIntent)) {
       if (SELECT_FOREGROUND_NOTIFICATION_ACTION.equals(mainActivityIntent.getAction())) {
         Map<String, Object> notificationResponse = extractNotificationResponseMap(mainActivityIntent);
         processForegroundNotificationAction(mainActivityIntent, notificationResponse);
+      } else {
+        dismissClickedNotification(applicationContext, mainActivityIntent);
       }
     }
   }
@@ -1541,6 +1569,24 @@ public class FlutterLocalNotificationsPlugin
   @Override
   public void onMethodCall(MethodCall call, @NonNull Result result) {
     switch (call.method) {
+      case "configureLocalNotificationCopies":
+        List<Object> localCopies = call.argument("copies");
+        if (localCopies == null) {
+          result.error("invalid_local_copies", "copies is required", null);
+        } else {
+          PennyNotificationAnalytics.configureLocalCopies(
+              applicationContext, new JSONArray(localCopies));
+          result.success(true);
+        }
+        break;
+      case "shouldShowNotificationPermissionRationale":
+        if (mainActivity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          result.success(ActivityCompat.shouldShowRequestPermissionRationale(
+              mainActivity, Manifest.permission.POST_NOTIFICATIONS));
+        } else {
+          result.success(false);
+        }
+        break;
       case "getPendingNotificationAnalytics":
         result.success(PennyNotificationAnalytics.getPending(applicationContext));
         break;
@@ -1700,6 +1746,7 @@ public class FlutterLocalNotificationsPlugin
 
   private void showBroadcastNotification(MethodCall call, Result result) {
     final String broadcast = call.argument("broadcast");
+    final String dataScheme = call.argument("dataScheme");
     final Integer interval = call.argument("interval");
     if (TextUtils.isEmpty(broadcast) || interval == null || interval <= 0) {
       result.error("invalid_broadcast", "A broadcast action and positive interval are required.", null);
@@ -1711,7 +1758,7 @@ public class FlutterLocalNotificationsPlugin
     FlutterBroadcastNotificationPlugin.saveInterval(applicationContext, interval, broadcast);
     FlutterBroadcastNotificationPlugin.saveNotificationDetails(applicationContext, notificationDetails, broadcast);
     FlutterBroadcastNotificationPlugin.saveRandomMessages(applicationContext, broadcast, call.argument("randomMessages"));
-    BroadcastNotificationReceiver.add(applicationContext, broadcast);
+    BroadcastNotificationReceiver.add(applicationContext, broadcast, dataScheme);
     result.success(true);
   }
 
@@ -1997,6 +2044,8 @@ public class FlutterLocalNotificationsPlugin
 
   private void cancelNotification(Integer id, String tag) {
     BroadcastNotificationReceiver.remove(applicationContext, id);
+    PennyNotificationAnalytics.cancelSource(applicationContext, id);
+    PennyMediaNotification.cancelSource(applicationContext, id);
     Intent intent = new Intent(applicationContext, ScheduledNotificationReceiver.class);
     PendingIntent pendingIntent = getBroadcastPendingIntent(applicationContext, id, intent);
     AlarmManager alarmManager = getAlarmManager(applicationContext);
@@ -2014,6 +2063,8 @@ public class FlutterLocalNotificationsPlugin
     BroadcastNotificationReceiver.removeAll(applicationContext);
     NotificationManagerCompat notificationManager = getNotificationManager(applicationContext);
     notificationManager.cancelAll();
+    PennyNotificationAnalytics.clearDisplaySlots(applicationContext);
+    PennyMediaNotification.clearDisplaySlots(applicationContext);
     ArrayList<NotificationDetails> scheduledNotifications = loadScheduledNotifications(applicationContext);
     if (scheduledNotifications == null || scheduledNotifications.isEmpty()) {
       result.success(null);
@@ -2205,12 +2256,25 @@ public class FlutterLocalNotificationsPlugin
       Map<String, Object> notificationResponse = extractNotificationResponseMap(intent);
       if (SELECT_FOREGROUND_NOTIFICATION_ACTION.equals(intent.getAction())) {
         processForegroundNotificationAction(intent, notificationResponse);
+      } else {
+        dismissClickedNotification(applicationContext, intent);
       }
       channel.invokeMethod("didReceiveNotificationResponse", notificationResponse);
       return true;
     }
 
     return false;
+  }
+
+  static void dismissClickedNotification(Context context, Intent intent) {
+    if (intent == null || !SELECT_NOTIFICATION.equals(intent.getAction())
+        || launchedActivityFromHistory(intent)) return;
+    String token = intent.getStringExtra(DISMISS_TOKEN);
+    if (intent.hasCategory(MEDIA_COMPANION)) {
+      PennyMediaNotification.cancelClicked(context, intent.getIntExtra(NOTIFICATION_ID, -1), token);
+    } else if (token != null) {
+      PennyNotificationAnalytics.cancelClicked(context, token);
+    }
   }
 
   private void processForegroundNotificationAction(

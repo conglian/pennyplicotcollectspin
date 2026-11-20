@@ -22,7 +22,7 @@
   ],
   "delivery_limitations": [
     "沿用本地TBA尽力上报，没有新增服务端回执/网络重试保证。通知原生记录触发后，Flutter初始化或回前台提交上报；按ID防重。",
-    "非FCM实际通知发送均计曝光；前台服务初次启动、余额刷新、15分钟刷新每次真实发送分别记一次；单次分发不能双记。",
+    "按1.0.0温和版，所有实际分发的通知（含客户端展示的FCM）均计曝光；前台服务仅在首次启动或余额变更后真实更新时记一次；单次分发不能双记。",
     "广告上限业务触发暂不新增；金苹果广告流程按2026-10-28用户确认修改。"
   ],
   "product_counts": {
@@ -802,10 +802,11 @@
       "files": [
         "lib/PCTool/PCAnalytics.dart",
         "lib/PCTool/PCNoticeHelp.dart",
-        "lib/PCThrid/common_notifications-master/android/src/main/java/com/dexterous/flutterlocalnotifications/PennyNotificationAnalytics.java"
+        "PCThrid/common_notifications-master/android/src/main/java/com/dexterous/flutterlocalnotifications/PennyNotificationAnalytics.java"
       ],
       "required_parameters": "type:local、unlock、fcm",
-      "note": "用户确认排除FCM曝光；其余本地、媒体、固定、亮锁屏及前台服务每次真实发送记inform_p，计划注册不记。FCM历史队列只确认删除，不报告inform_p；inform_c仍区分fcm。"
+      "note": "1.0.0温和版按真实分发记录inform_p，截图类型local/unlock/fcm分别用于本地定时、解锁场景和FCM；inform_c沿用同一类型。截图未列出的场景使用background、media、foreground_service、screen_on、screen_off、power_connected、power_disconnected、system_*、package_*。Home键退出和普通退后台的曝光、点击统一使用background。FCM通知实际分发后记录，计划注册不记录。",
+      "supplemental_type_values": "background、media、foreground_service、screen_on、screen_off、power_connected、power_disconnected、system_*、package_*"
     },
     {
       "row": 84,
@@ -815,7 +816,8 @@
       "files": [
         "lib/PCTool/PCNoticeHelp.dart"
       ],
-      "required_parameters": "type:local、unlock、fcm"
+      "required_parameters": "type:local、unlock、fcm",
+      "supplemental_type_values": "background、media、foreground_service、screen_on、screen_off、power_connected、power_disconnected、system_*、package_*"
     },
     {
       "row": 85,
@@ -985,14 +987,14 @@
     {
       "row": 17,
       "placeID": "nkmdl_moneybub_getpop_rv",
-      "description": "气泡纸钞/钻石/金砖获得弹窗，点击【Collect】/【claim double】跳转至激励广告视频",
+      "description": "首页带AD气泡的入口激励，以及普通气泡钻石【Collect】和金砖【Claim Double】的获得框激励",
       "status": "implemented",
-      "note": "用户确认两个带AD气泡点击后的入口激励使用nkmdl_moneybub_getpop_rv；入口成功先发第一笔，后续获得框仍按既有概率插屏Claim。"
+      "note": "首页带AD气泡入口成功先发第一笔；钻石和金砖获得框内的主按钮沿用同一场景标记，美元Claim走概率插屏。"
     },
     {
       "row": 18,
       "placeID": "nkmdl_moneybub_getpop_int",
-      "description": "气泡纸钞/钻石/金砖获得弹窗，点击【Give up】/【claim】关闭弹窗概率出插屏",
+      "description": "首页普通气泡获得框，美元【Claim】及关闭、钻石【Give Up】、金砖底部【Claim】的概率插屏",
       "status": "implemented"
     },
     {

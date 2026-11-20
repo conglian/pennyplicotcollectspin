@@ -1,3 +1,4 @@
+import '../../PCTool/PCWithdrawValidation.dart';
 import 'package:flutter/material.dart';
 import '../../PCTool/PCAdaptiveLayout.dart';
 import '../../PCTool/PCPigMotion.dart';
@@ -275,14 +276,7 @@ class PCPigUpgradeAccountCard extends StatelessWidget {
                 children: [
                   _label('Account:', 14),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: PCText(
-                      text: account.isEmpty ? 'Not set' : account,
-                      size: 14,
-                      color: Colors.black,
-                      weight: FontWeight.w500,
-                    ),
-                  ),
+                  Expanded(child: _accountText()),
                   const SizedBox(width: 8),
                   Container(
                     width: 80,
@@ -333,14 +327,7 @@ class PCPigUpgradeAccountCard extends StatelessWidget {
                 children: [
                   _label('Account:', 14),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: PCText(
-                      text: account.isEmpty ? 'Not set' : account,
-                      size: 14,
-                      color: Colors.black,
-                      weight: FontWeight.w500,
-                    ),
-                  ),
+                  Expanded(child: _accountText()),
                 ],
               ),
               Row(
@@ -358,18 +345,33 @@ class PCPigUpgradeAccountCard extends StatelessWidget {
             ],
           ),
   );
+  Widget _accountText() => FittedBox(
+    fit: BoxFit.scaleDown,
+    alignment: Alignment.centerLeft,
+    child: PCText(
+      text: PCWithdrawValidation.displayAccount(account, fallback: 'Not set'),
+      size: 14,
+      color: Colors.black,
+      weight: FontWeight.w500,
+    ),
+  );
+
   Widget _label(String text, double size) => PCText(
     text: text,
     size: size,
     color: const Color(0xFF13395F),
     weight: FontWeight.w600,
   );
-  Widget _payment() => SizedBox(
-    width: 66,
-    height: 24,
-    child: PCImg(
-      name: paymentAsset == 'pc_act_0' ? 'pc_pig_upgrade_paypal' : paymentAsset,
-      fit: BoxFit.contain,
-    ),
-  );
+  Widget _payment() => paymentAsset.isEmpty
+      ? _label('Not set', 14)
+      : SizedBox(
+          width: 66,
+          height: 24,
+          child: PCImg(
+            name: paymentAsset == 'pc_act_0'
+                ? 'pc_pig_upgrade_paypal'
+                : paymentAsset,
+            fit: BoxFit.contain,
+          ),
+        );
 }

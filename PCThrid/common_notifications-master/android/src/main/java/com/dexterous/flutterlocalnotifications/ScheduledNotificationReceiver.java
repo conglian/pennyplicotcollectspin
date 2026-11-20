@@ -50,7 +50,6 @@ public class ScheduledNotificationReceiver extends BroadcastReceiver {
 
       notification.when = System.currentTimeMillis();
       NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
-      notificationManager.notify(notificationId, notification);
       // 兼容插件早期直接携带Notification的存档，同样在真实分发后记录一次。
       NotificationDetails delivered = new NotificationDetails();
       delivered.id = notificationId;
@@ -58,6 +57,9 @@ public class ScheduledNotificationReceiver extends BroadcastReceiver {
       if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
         delivered.channelId = notification.getChannelId();
       }
+      int displayId = PennyNotificationAnalytics.prepareDispatch(context, delivered, null);
+      if (displayId < 0) return;
+      notificationManager.notify(displayId, notification);
       PennyNotificationAnalytics.recordShown(context, delivered, null);
       boolean repeat = intent.getBooleanExtra("repeat", false);
       if (!repeat) {

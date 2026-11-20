@@ -44,7 +44,44 @@ class PCNoticeMessage {
   };
   PCNoticeAction get action =>
       kind == PCNoticeKind.goal ? PCNoticeAction.earn : PCNoticeAction.withdraw;
-  String get payload => jsonEncode({'pcNotice': 1, 'action': action.name});
+  String payloadFor({String type = 'local'}) =>
+      jsonEncode({'pcNotice': 1, 'action': action.name, 'type': type});
+
+  String get payload => payloadFor();
+
+  static String analyticsType(String? payload, {String? broadcastAction}) {
+    try {
+      final data = jsonDecode(payload ?? '');
+      if (data is Map && data['pcNotice'] == 1) {
+        final type = data['type'];
+        if (type is String && type.trim().isNotEmpty) {
+          final normalized = type.trim();
+          return normalized == 'home_key' ? 'background' : normalized;
+        }
+      }
+    } catch (_) {}
+    final value = (payload ?? '').trim().toLowerCase();
+    if (value == 'home_key' ||
+        value == 'background' ||
+        broadcastAction == 'android.intent.action.CLOSE_SYSTEM_DIALOGS') {
+      return 'background';
+    }
+    if (value.startsWith('fcm')) return 'fcm';
+    if (value == 'foreground') return 'foreground_service';
+    if (broadcastAction == 'android.intent.action.USER_PRESENT' ||
+        value == 'unlock') {
+      return 'unlock';
+    }
+    if (broadcastAction == 'android.intent.action.SCREEN_ON' ||
+        value == 'screenon') {
+      return 'screen_on';
+    }
+    if (broadcastAction == 'android.intent.action.SCREEN_OFF' ||
+        value == 'screenoff') {
+      return 'screen_off';
+    }
+    return 'local';
+  }
 
   static PCNoticeAction? parseAction(String? payload) {
     final legacy = switch (payload) {

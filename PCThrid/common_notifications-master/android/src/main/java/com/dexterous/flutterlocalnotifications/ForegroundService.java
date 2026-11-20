@@ -5,9 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.os.Build;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.util.Log;
 
 import androidx.core.app.NotificationManagerCompat;
@@ -16,19 +14,8 @@ import com.dexterous.flutterlocalnotifications.models.NotificationDetails;
 
 public class ForegroundService extends Service {
     static boolean alive = false;
-    static final long REFRESH_INTERVAL_MILLIS = 15 * 60 * 1000L;
-
-    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
-    private boolean refreshScheduled = false;
     private boolean stopping = false;
     private long notificationVersion = 0;
-    private final Runnable refreshNotification = new Runnable() {
-        @Override
-        public void run() {
-            refreshScheduled = false;
-            if (!stopping && updateFromStoredDetails()) scheduleRefresh();
-        }
-    };
 
     @Override
     public void onCreate() {
@@ -38,7 +25,6 @@ public class ForegroundService extends Service {
 
     @Override
     public void onDestroy() {
-        cancelRefresh();
         stopping = true;
         notificationVersion++;
         stopForeground(true);
@@ -48,26 +34,14 @@ public class ForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Flutter 余额变动会立即再次 start 服务；只更新同一条通知，不能推迟原来的周期。
-        if (!stopping && updateFromStoredDetails()) scheduleRefresh();
+        // Flutter只在启动或金额变化时刷新这条固定ID的前台通知。
+        if (!stopping) updateFromStoredDetails();
         return START_NOT_STICKY;
-    }
-
-    private void scheduleRefresh() {
-        if (stopping || refreshScheduled) return;
-        refreshScheduled = true;
-        refreshHandler.postDelayed(refreshNotification, REFRESH_INTERVAL_MILLIS);
-    }
-
-    private void cancelRefresh() {
-        refreshHandler.removeCallbacks(refreshNotification);
-        refreshScheduled = false;
     }
 
     private void stopServiceAndRefresh() {
         stopping = true;
         notificationVersion++;
-        cancelRefresh();
         stopForeground(true);
         stopSelf();
     }
@@ -103,7 +77,7 @@ public class ForegroundService extends Service {
                     }
                     try {
                         startForeground(notificationData.id, notification);
-                        // 初次、余额更新、15分钟刷新都是真正分发；每次只记录这里一次。
+                        // 初次启动或金额变化时实际更新一次，只在真实派发后记曝光。
                         PennyNotificationAnalytics.recordForegroundShown(
                                 getApplicationContext(), notificationData);
                     } catch (Throwable e) {

@@ -1,71 +1,31 @@
-# 通知规则（2026-10-27）
+# 通知规则（1.0.0 温和版，2026-11-16）
 
-统一入口为 `lib/PCTool/PCNoticeHelp.dart`；Android原生在本地 `common_notifications-master` 插件。新用户未完成或未授权通知时不启用系统通知；权限只由用户点击申请。
+统一入口为 `lib/PCTool/PCNoticeHelp.dart`；Android 原生实现位于 `PCThrid/common_notifications-master`。本次只实现 1.0.0 温和版，不实现 1.0.1 的 2 秒通知刷新、2 分钟前台服务心跳、JobScheduler 兜底重启或 YouTube 拉活。
 
-| 类型 | ID | Channel | 首次启用后的时间 | payload |
-| --- | --- | --- | --- | --- |
-| 媒体1 | 4738 | 177notice0 | 29分钟，单次 | Media1 |
-| 媒体2 | 2788 | 177notice21 | 59分钟，单次 | Media2 |
-| 媒体3 | 2934 | 177notice31 | 119分钟，单次 | Media3 |
-| 媒体4 | 1320 | 177notice41 | 159分钟，单次 | Media4 |
-| 固定1 | 5590 | 177notice1 | 26分钟，单次 | noti1 |
-| 固定2 | 4562 | 177notice2 | 62分钟，单次 | noti2 |
-| 固定3 | 7552 | 177notice3 | 117分钟，单次 | noti3 |
-| 固定4 | 9475 | 177notice4 | 162分钟，单次 | noti4 |
-| 前台服务 | 1200 | pigwalletForeground | 启动立即、原生每15分钟、美元变化立即 | foreground |
-| FCM1 | 后台提供/安全生成 | pc_fcm_withdraw_v1 | c177fcm_piggy后台推送 | fcm1 |
-| FCM2 | 后台提供/安全生成 | pc_fcm_claim_v1 | c177fcm_piggy_two后台推送 | fcm2 |
+## 类型与频控
 
-亮屏为SCREEN_ON/ID1029，锁屏为SCREEN_OFF/ID2829，复用固定2/固定1通道；保留旧unlock点击兼容。重复事件节流30秒，每次真实事件重新成对抽文案，不设置自动重复计时。
+| 类型 | ID / Channel | 触发与行为 |
+| --- | --- | --- |
+| T1 权限引导 | 应用内弹窗 | 每次冷启动检查权限；已授权不弹；未授权且引导就绪时显示。只有用户点击 Enable Notifications 才请求系统权限；系统不再显示权限框时打开通知设置。Later 仅本次运行关闭，下次冷启动仍可展示。 |
+| T2 本地定时 | 5590 / 177notice1；4562 / 177notice2；7552 / 177notice3；9475 / 177notice4 | 安装后分别按 30、39、59、79 分钟开始循环；每次从本地 4 条文案池顺序取下一条，文案金额取当前缓存。 |
+| T3 场景通知 | 动态注册独立 ID | 退出后台立即一次；解锁、亮/熄屏、电源连接/断开、Home、系统日期/时区设置及应用包安装/移除/更新变化触发。场景通知全局间隔至少 12 秒。 |
+| T4 FCM 数据消息 | topic `c177fcm_piggy` | 由客户端接收数据消息并按服务端字段展示自定义通知；服务端控制频次。 |
+| T5 FCM 通知消息 | topic `c177fcm_piggy_two` | 由系统显示单行标题及折叠正文；服务端控制频次。 |
+| T6 前台服务通知 | ID 1200 / pigwalletForeground | 常驻且不可滑除，启动时显示；美元金额变化时更新同一条通知；点击进入提现页。撤权时停止。温和版不增加定时心跳或 Job 重启。 |
+| T7 媒体通知 | `pc_notice_media_v1`，21000–21019 | T2/T3/T4/T5 通知发布后另发一张静默媒体卡片，使用 80% 不透明度的黑色背景和白字，本地 4 条文案按序轮换。点击沿用对应的提现或赚取入口，曝光和点击单独记录 `type=media`。 |
 
-## 本地文案
+场景通知任意两次派发间隔不少于 12 秒。本地、FCM 与场景通知共用 20 个展示槽，超过 20 条后循环覆盖最早槽位。计划注册本身不算展示。Android 通知权限或渠道关闭时，系统可能阻止通知显示，应用不得绕过系统限制。
 
-媒体、固定、亮屏、锁屏共用以下5组。媒体/固定排期时保存索引，余额刷新不重抽；亮屏/锁屏在实际广播触发时抽取。`{amount}` 为缓存美元金额，含$、两位小数。
+## 通知打点
 
-| Title | Body |
-| --- | --- |
-| Piggy Almost Full! | You’ve saved {amount}—cash out before it spills! |
-| Cash-Out Time 🎉 | Spin & play—your balance is ready to grab! |
-| Your Payout Is Ready! 💰 | Piggy bank is full and ready to pop—open the app to collect your cash. |
-| Advertiser Just Paid You! 🎁 | Tap to feed your piggy & claim today’s payout. |
-| Balance Near Max 💵 | Almost full—withdraw before it’s gone! |
+实际分发记 `inform_p`，点击记 `inform_c`，参数名为 `type`。按截图优先使用 `local`（本地定时）、`unlock`（解锁场景）、`fcm`（FCM）。其他功能的值使用 `background`、`media`、`foreground_service`、`screen_on`、`screen_off`、`power_connected`、`power_disconnected`、`system_*` 和 `package_*`。Home 键退出的曝光和点击统一使用 `background`，旧 payload 中的 `home_key` 也按 `background` 上报。曝光仅在系统实际分发通知后入本地队列；FCM 也按实际客户端展示入队。Flutter 恢复后统一提交并按事件ID确认，不能重复提交。
 
-## 持久化与恢复
+## 文案与样式
 
-- `pc_notification_plan_v3` 保存锚点、issued、signatures、suspended及copyIndices。每项绝对时间=锚点+分钟，不使用periodicallyShow。
-- 同日/隔天冷启动均复用原计划；已经发出的项不重排。权限撤回取消待发项并保留锚点，再授权只恢复仍未到期项，过期不补发。
-- 使用inexactAllowWhileIdle，Android省电策略可能延后实际送达。
-- 前台服务更新同ID；原生Handler计时，不依赖Dart前台Timer。重复启动只更新内容，不重置15分钟周期。停止、销毁及撤权移除回调，异步旧内容不能覆盖新余额或重建已停止的服务。
-- 媒体每个channel使用独立MediaSession；两个FCM topic模板分别缓存，不能相互覆盖。
-- 迁移移除旧服务17759及旧计划8852/1268/6722/1195，避免旧通知重复。
+本地定时池和媒体池分别按序轮换。T4 使用服务端标题、正文及媒体字段，不以本地文案替换。T5 使用系统弱样式。T6 使用现有前台服务 RemoteViews，金额和点击目标动态更新。T7 使用本地猪猪插画和自定义收起、展开布局。
 
-## FCM
+## FCM 与导航
 
-默认topic已提供，不需要在客户端放FCM服务端密钥。`configureFcmTopics`可替换单个topic，空字符串禁用对应槽，替换先取消旧订阅；模板与订阅分别持久化。
+`configureFcmTopics` 可分别替换 `fcm1` / `fcm2` 的 topic，替换时取消旧订阅；客户端不保存服务端密钥。后台 data-only 内容由本地原生服务渲染。通知点击先保存 action，等引导及首页可导航后再打开 Cash / Quiz；通知点击导航优先于回前台插屏。
 
-自定义后台样式使用**data-only**消息。Firebase带notification字段的消息在后台由系统直接展示，会绕过本地service的样式与路由。参考[Firebase官方说明](https://firebase.google.com/docs/cloud-messaging/android/receive-messages)。HTTP v1消息示例：
-
-```json
-{
-  "message": {
-    "topic": "c177fcm_piggy",
-    "data": {
-      "title": "Your Payout Is Ready! 💰",
-      "body": "Open the app to collect your cash.",
-      "id": "6001",
-      "amount": "100.00"
-    },
-    "android": { "priority": "high" }
-  }
-}
-```
-
-原生按`RemoteMessage.from`的topic路由，也接受data.topic/payload/channelId。title/body始终使用后台数据；空文案不展示，id缺失或非法时安全生成。FCM1点击去Cash，FCM2去Quiz，不使用本地随机文案替换后台内容。
-
-## 前台与导航
-
-App前台由既有PCInAppNotificationHost串行展示自定义横幅。通知点击先保留pendingAction，待引导和首页就绪再导航。PCForegroundAdController在消费通知导航前检查pending，防止同时出现回流广告。只有真实paused→resumed、没有广告/流程/路由占用且存在缓存时尝试一次插屏，无缓存不发起补请求、不设置重试计时。
-
-- 2026-10-31：移除绿色金猪payout通知样式及余额跨首档自动弹出逻辑。PCNoticeKind仅保留account/goal；固定117分钟、媒体119分钟和FCM1改用goal，原8项定时计划、11通道和两topic保留。旧原生缓存template:payout降级goal/Claim，FCM样式签名包含kind以刷新旧元数据；用户5组随机文案池保留。
-
-- 2026-10-31站内通知不阻断页面操作：用户在通知卡之外按下时，立即收起通知并在业务onTap之前释放展示权，第一次点击即可响应；通知正常展示仍与业务弹窗串行，关闭/上滑/8秒自动退场保留。通知卡自身操作不触发外部让位逻辑。
+Android 的 WorkManager、JobScheduler 和 AlarmManager 会受省电策略影响，不能承诺固定分钟数准时触发。温和版不增加更密集的轮询、后台拉活或保活重启。

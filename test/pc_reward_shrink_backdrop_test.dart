@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pennypilotcollectspin/PCTool/PCAudioUtils.dart';
 import 'package:pennypilotcollectspin/PCTool/PCQuizConfig.dart';
 import 'package:pennypilotcollectspin/PCTool/PCQuizRewardAnimation.dart';
-import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/pc_fake_audio.dart';
@@ -36,6 +35,7 @@ void main() {
           var visible = true;
           var finished = 0;
           var underlyingTaps = 0;
+          final pageBalance = GlobalKey();
           await tester.pumpWidget(
             MaterialApp(
               home: MediaQuery(
@@ -53,6 +53,15 @@ void main() {
                           onTap: () => underlyingTaps++,
                           child: const ColoredBox(color: Colors.blue),
                         ),
+                        Positioned(
+                          left: 56,
+                          top: 62,
+                          child: SizedBox(
+                            key: pageBalance,
+                            width: 55,
+                            height: 24,
+                          ),
+                        ),
                         if (visible)
                           Positioned.fill(
                             child: PCQuizRewardAnimation(
@@ -63,6 +72,7 @@ void main() {
                                 questionIndex: 0,
                               ),
                               balance: 100,
+                              targetKey: pageBalance,
                               onFinished: () {
                                 finished++;
                                 rebuild(() => visible = false);
@@ -80,30 +90,43 @@ void main() {
           final duration = reduced ? 300 : 1800;
           final shrinkAt = reduced ? 195 : 1170;
           final flightFrame = reduced ? 10 : 50;
-          Color backdrop() => tester
-              .widget<ColoredBox>(
-                find.byKey(const ValueKey('pcRewardBackdrop')),
-              )
-              .color;
+          final cardFinder = find.byKey(
+            const ValueKey('pcRewardCardBackground'),
+          );
           Color? card() =>
-              (tester
-                          .widget<DecoratedBox>(
-                            find.byKey(
-                              const ValueKey('pcRewardCardBackground'),
-                            ),
-                          )
-                          .decoration
+              (tester.widget<DecoratedBox>(cardFinder).decoration
                       as BoxDecoration)
                   .color;
 
-          await tester.pump(Duration(milliseconds: shrinkAt - 1));
-          expect(backdrop(), pcDialogBackdrop);
+          var elapsed = 0;
+          final flight = find.byType(Flow);
+          if (reduced) {
+            expect(flight, findsNothing);
+          } else {
+            elapsed = 1040;
+            await tester.pump(Duration(milliseconds: elapsed));
+            final pageCenter = tester.getCenter(find.byKey(pageBalance));
+            final cardRect = tester.getRect(cardFinder);
+            expect(cardRect.contains(pageCenter), isFalse);
+            final sprites = find.descendant(
+              of: flight,
+              matching: find.byType(Image),
+            );
+            expect(
+              sprites.evaluate().indexed.any((sprite) {
+                final center = tester.getCenter(sprites.at(sprite.$1));
+                return !cardRect.contains(center) &&
+                    (center - pageCenter).distance < 22;
+              }),
+              isTrue,
+              reason: '奖励图标应飞出卡片，抵达当前页面的余额',
+            );
+          }
+
+          await tester.pump(Duration(milliseconds: shrinkAt - 1 - elapsed));
           expect(card()!.a, greaterThan(0));
-          final startRect = tester.getRect(
-            find.byKey(const ValueKey('pcRewardCardBackground')),
-          );
+          final startRect = tester.getRect(cardFinder);
           await tester.pump(const Duration(milliseconds: 1));
-          expect(backdrop(), Colors.transparent);
           expect(card(), Colors.transparent);
           expect(finished, 0);
           expect(find.byType(PCQuizRewardAnimation), findsOneWidget);
@@ -111,12 +134,9 @@ void main() {
           expect(underlyingTaps, 0);
 
           await tester.pump(Duration(milliseconds: flightFrame));
-          final flyingRect = tester.getRect(
-            find.byKey(const ValueKey('pcRewardCardBackground')),
-          );
+          final flyingRect = tester.getRect(cardFinder);
           expect(flyingRect.height, lessThan(startRect.height));
           expect(flyingRect.center.dy, lessThan(startRect.center.dy));
-          expect(backdrop(), Colors.transparent);
           expect(card(), Colors.transparent);
           expect(finished, 0);
           await tester.tapAt(const Offset(2, 2));

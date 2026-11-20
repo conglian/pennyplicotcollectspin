@@ -147,19 +147,19 @@ void main() {
           (widget) => widget is PCImg && widget.name == 'pc_ad_icon',
         ),
       ),
-      findsNothing,
+      findsOneWidget,
     );
     expect(rewards.gold, closeTo(10.25 + reward.amount, .00001));
-    await tester.tap(find.byKey(const ValueKey('pcQuizClaimReward')));
+    await tester.tap(find.byKey(const ValueKey('pcAwardSingleClaim')));
     await tester.tap(
-      find.byKey(const ValueKey('pcQuizClaimReward')),
+      find.byKey(const ValueKey('pcAwardSingleClaim')),
       warnIfMissed: false,
     );
     await frames(tester, 100);
     expect(placements, ['nkmdl_moneybub_getpop_rv']);
     expect(interstitials, ['nkmdl_moneybub_getpop_int']);
     await tester.tap(
-      find.byKey(const ValueKey('pcQuizCloseReward')),
+      find.byKey(const ValueKey('pcQuizClaimReward')),
       warnIfMissed: false,
     );
     expect(interstitials, ['nkmdl_moneybub_getpop_int']);
@@ -272,7 +272,7 @@ void main() {
         .widget<PCAwardDialog>(find.byType(PCAwardDialog))
         .reward!;
     expect(rewarded, 0);
-    await tester.tap(find.byKey(const ValueKey('pcQuizClaimReward')));
+    await tester.tap(find.byKey(const ValueKey('pcAwardSingleClaim')));
     await frames(tester, 2600);
     expect(find.byType(PCAwardDialog), findsNothing);
     expect(rewards.gold, closeTo(10.25 + reward.amount, .00001));
@@ -294,7 +294,7 @@ void main() {
     await tester.tap(free);
     await frames(tester);
     expect(find.byType(PCAwardDialog), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pcQuizCloseReward')));
+    await tester.binding.handlePopRoute();
     await frames(tester);
     expect(rewards.freeCooldownSeconds, 60);
     expect(freeContent().cooldownSeconds, 60);
@@ -358,7 +358,7 @@ void main() {
     expect(interstitials, ['nkmdl_applebub_int']);
     expect(
       rewards.gold,
-      closeTo(10.25 + entryReward.amount + reward.amount, .00001),
+      closeTo(10.25 + entryReward.amount + reward.amount * 2, .00001),
     );
     expect(rewards.generation, oldGeneration + 2);
     final effect = tester.widget<PCQuizRewardAnimation>(
@@ -446,7 +446,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pcHomeRewardBubble0')));
     await frames(tester);
     expect(find.byType(PCAwardDialog), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pcQuizCloseReward')));
+    await tester.binding.handlePopRoute();
     await frames(tester);
     now = now.add(const Duration(seconds: 60));
     await frames(tester, 1000);

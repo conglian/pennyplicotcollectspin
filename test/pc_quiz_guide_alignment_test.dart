@@ -10,6 +10,9 @@ import 'package:pennypilotcollectspin/PCMainVC/PCQuiz.dart';
 import 'package:pennypilotcollectspin/PCMainVC/PCQuizContentPanel.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
+import 'package:pennypilotcollectspin/PCTool/pc_img.dart';
+import 'package:pennypilotcollectspin/PCTool/pc_shou_icon.dart';
+import 'package:pennypilotcollectspin/PCTool/pc_stroke_text.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -124,6 +127,26 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expectAligned();
       expect(tester.takeException(), isNull);
+      final guideAnswer = find.descendant(
+        of: guide,
+        matching: find.byKey(const ValueKey('pcQuizAnswerA')),
+      );
+      final guideLabel = find.descendant(
+        of: guideAnswer,
+        matching: find.byType(PCStrokeText),
+      );
+      final labelBeforeHint = tester.getRect(guideLabel);
+      await tester.pump(const Duration(seconds: 2));
+      expectAligned();
+      expect(tester.getRect(guideLabel), labelBeforeHint);
+      final guideHand = find.descendant(
+        of: find.descendant(of: guide, matching: find.byType(PCShouIcon)),
+        matching: find.byType(PCImg),
+      );
+      expect(
+        tester.getRect(guideHand).left,
+        greaterThan(labelBeforeHint.right),
+      );
       final count = provider.pc_quiz_all_num;
       await tester.tap(
         find.descendant(

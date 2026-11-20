@@ -1,9 +1,17 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:pennypilotcollectspin/PCBasic/PCLaunch.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCOther/PCAdLoadingFailedDialog.dart';
 import 'package:pennypilotcollectspin/PCTool/PCAnalytics.dart';
 import 'package:pennypilotcollectspin/PCTool/PCNoticeHelp.dart';
+import 'package:pennypilotcollectspin/PCTool/PCTBAEventTool.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -80,16 +88,152 @@ void main() {
     ], start: 2);
   });
 
-  test('标准安装只对首次安装上报，已有存档升级不重新记install', () async {
+  test('安装请求进行中合并并发，收到成功确认后跨冷启去重', () async {
+    final started = Completer<void>();
+    final response = Completer<bool>();
     var installs = 0;
-    PCAnalytics.installReporter = () async => installs++;
-    await Future.wait([PCAnalytics.install(), PCAnalytics.install()]);
-    expect(installs, 1);
-    SharedPreferences.setMockInitialValues({'pc_install_status': true});
+    PCAnalytics.installReporter = () {
+      installs++;
+      started.complete();
+      return response.future;
+    };
+    final first = PCAnalytics.install();
+    await started.future;
+    final second = PCAnalytics.install();
+    expect(second, same(first));
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.containsKey(PCAnalytics.installKey), isFalse);
+    response.complete(true);
+    await Future.wait([first, second]);
+    expect(prefs.getBool(PCAnalytics.installKey), isTrue);
+
     PCAnalytics.resetForTesting();
-    PCAnalytics.installReporter = () async => installs++;
+    PCAnalytics.installReporter = () async {
+      installs++;
+      return true;
+    };
     await PCAnalytics.install();
     expect(installs, 1);
+  });
+
+  test('已有旧版安装标记的存档升级后不重报', () async {
+    var installs = 0;
+    for (final key in [PCAnalytics.installKey, 'pc_install_status']) {
+      PCAnalytics.resetForTesting();
+      SharedPreferences.setMockInitialValues({key: true});
+      PCAnalytics.installReporter = () async {
+        installs++;
+        return true;
+      };
+      await PCAnalytics.install();
+    }
+    expect(installs, 0);
+  });
+
+  test('只在 cloak 成功后尝试安装请求，失败跨冷启续报并复用日志 ID', () async {
+    const metadata = MethodChannel('flutter_tba_info');
+    const referrer = MethodChannel(
+      'de.lschmierer.android_play_install_referrer',
+    );
+    var generatedLogIds = 0;
+    messenger.setMockMethodCallHandler(metadata, (call) async {
+      return switch (call.method) {
+        'getLogId' => 'test-install-${++generatedLogIds}',
+        'getFirstInstallTime' || 'getLastUpdateTime' => 1,
+        _ => 'test',
+      };
+    });
+    messenger.setMockMethodCallHandler(
+      referrer,
+      (_) async => {
+        'referrerClickTimestampSeconds': 1,
+        'installBeginTimestampSeconds': 1,
+        'referrerClickTimestampServerSeconds': 1,
+        'installBeginTimestampServerSeconds': 1,
+        'googlePlayInstantParam': false,
+      },
+    );
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(metadata, null);
+      messenger.setMockMethodCallHandler(referrer, null);
+    });
+
+    final logIds = <String>[];
+    var cloakRequests = 0;
+    final prefs = await SharedPreferences.getInstance();
+    void expectPendingInstall() {
+      expect(prefs.containsKey(PCAnalytics.installKey), isFalse);
+      expect(prefs.containsKey('pc_install_status'), isFalse);
+    }
+
+    await http.runWithClient(
+      () async {
+        await PCLaunchState().pc_getUserCloakConfig();
+        await PCLaunchState().pc_getUserCloakConfig();
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(logIds, isEmpty);
+        expectPendingInstall();
+
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(logIds, hasLength(1));
+        expectPendingInstall();
+
+        // Simulate a process restart after the socket reset.
+        await prefs.reload();
+        PCAnalytics.resetForTesting();
+        PCAnalytics.reporter = (name, body) => events.add((name, body));
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(logIds, hasLength(1));
+        expectPendingInstall();
+
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(logIds, hasLength(2));
+        expectPendingInstall();
+
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(prefs.getBool(PCAnalytics.installKey), isTrue);
+        expect(prefs.getBool('pc_install_status'), isTrue);
+        await PCLaunchState().pc_getUserCloakConfig();
+        expect(logIds, List.filled(3, 'test-install-1'));
+        expect(events.where((event) => event.$1 == 'cloak_suc'), hasLength(4));
+      },
+      () => MockClient((request) async {
+        if (request.method == 'GET') {
+          return switch (++cloakRequests) {
+            1 || 5 => throw const SocketException('test offline'),
+            2 => http.Response('temporarily unavailable', 503),
+            3 => http.Response('', 200),
+            _ => http.Response('ashland', 200),
+          };
+        }
+        expect(request.method, 'POST');
+        expect(request.url, Uri.parse(PCRequestHelpers.tba_event_Url_test));
+        final payload = jsonDecode(request.body) as Map<String, dynamic>;
+        final align = payload['align'] as Map<String, dynamic>;
+        logIds.add(align['reticent'] as String);
+        return switch (logIds.length) {
+          1 => throw const SocketException('Connection reset by peer'),
+          2 => http.Response('temporarily unavailable', 503),
+          _ => http.Response('', 201),
+        };
+      }),
+    );
+  });
+
+  test('安装请求单次失败后返回未确认，且不回退到正式地址', () async {
+    final previousUrl = PCRequestHelpers.tba_event_Url;
+    PCRequestHelpers.tba_event_Url = PCRequestHelpers.tba_event_Url_test;
+    addTearDown(() => PCRequestHelpers.tba_event_Url = previousUrl);
+    final attemptedUrls = <Uri>[];
+    final response = await http.runWithClient(
+      () => PCRequestHelpers().post({}, 1),
+      () => MockClient((request) async {
+        attemptedUrls.add(request.url);
+        throw const SocketException('test offline');
+      }),
+    );
+    expect(response, isNull);
+    expect(attemptedUrls, [Uri.parse(PCRequestHelpers.tba_event_Url_test)]);
   });
 
   test('session使用本地标准会话协议，不额外打同名自定义事件', () async {

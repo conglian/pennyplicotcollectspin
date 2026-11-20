@@ -154,7 +154,9 @@ void main() {
           expect(find.byType(IconButton), findsNothing);
           expect(
             find.byWidgetPredicate(
-              (w) => w is PCImg && w.name == 'pc_withdraw_gift_diamond',
+              (w) =>
+                  w is PCBouncyImage &&
+                  w.imagePath == 'pc_withdraw_gift_diamond',
             ),
             findsOneWidget,
           );
@@ -463,6 +465,46 @@ void main() {
     await dispose(tester);
   });
 
+  testWidgets('钻石礼包先显示已有收集量，进度和数字一起增长，钻石持续呼吸', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PCWithdrawalGiftRewardDialog(
+            collected: 6,
+            diamondAmount: 2.75,
+            onClaim: () async => true,
+          ),
+        ),
+      ),
+    );
+    final bar = find.byKey(const ValueKey('pcWithdrawalGiftProgress'));
+    final fill = find.descendant(
+      of: bar,
+      matching: find.byType(FractionallySizedBox),
+    );
+    final diamond = find.descendant(
+      of: find.byType(PCBouncyImage),
+      matching: find.byType(Image),
+    );
+    final initialDiamond = tester.getRect(diamond).width;
+    expect(find.text('6/20'), findsOneWidget);
+    expect(find.text('8.75/20'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      tester.widget<FractionallySizedBox>(fill).widthFactor,
+      inExclusiveRange(.3, .4375),
+    );
+    expect(tester.getRect(diamond).width, isNot(initialDiamond));
+    expect(find.text('8.75/20'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(
+      tester.widget<FractionallySizedBox>(fill).widthFactor,
+      closeTo(.4375, .0001),
+    );
+    expect(find.text('8.75/20'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final throws in [false, true]) {
     testWidgets('礼盒领奖${throws ? '异常' : '失败'}保留、在途防重，成功才返回', (tester) async {
       final pending = Completer<bool>();
@@ -727,7 +769,7 @@ void main() {
         withdrawalTarget: 100,
         rank: rank,
         queueCount: total,
-        account: '2***5532',
+        account: '2025555532',
         currentRank: () => rank,
         currentQueueCount: () => total,
         onSkipWait: () async {
@@ -755,7 +797,7 @@ void main() {
       expect(rowRect.top, greaterThanOrEqualTo(viewport.top - .01));
       expect(rowRect.bottom, lessThanOrEqualTo(viewport.bottom + .01));
       expect(
-        find.descendant(of: current, matching: find.text('2***5532')),
+        find.descendant(of: current, matching: find.text('2025555532')),
         findsOneWidget,
       );
     }

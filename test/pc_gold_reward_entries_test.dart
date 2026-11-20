@@ -139,8 +139,17 @@ void main() {
     expect(adPlacements, isEmpty);
   });
 
-  for (final source in ['home', 'quiz', 'wheel']) {
-    testWidgets('金砖10后$source真实点击仍按入口广告策略Claim一次且不重置总数', (tester) async {
+  for (final (source, singleClaim) in [
+    ('home', true),
+    ('home', false),
+    ('quiz', true),
+    ('quiz', false),
+    ('wheel', true),
+    ('wheel', false),
+  ]) {
+    testWidgets('金砖10后$source使用对应广告标记并结算${singleClaim ? '单倍' : '双倍'}', (
+      tester,
+    ) async {
       await seed(10.25);
       final home = PCHomeRewardController(
         random: Random(1),
@@ -196,25 +205,33 @@ void main() {
           .reward!;
       expect(reward.type, PCQuizRewardType.gold);
       expect(reward.amount, inInclusiveRange(.01, .02));
-      await tester.tap(find.byKey(const ValueKey('pcQuizClaimReward')));
+      final credited = singleClaim ? reward.amount : reward.amount * 2;
+      await tester.tap(
+        find.byKey(
+          ValueKey(singleClaim ? 'pcAwardSingleClaim' : 'pcQuizClaimReward'),
+        ),
+      );
       await frames(tester);
       final effect = tester.widget<PCQuizRewardAnimation>(
         find.byType(PCQuizRewardAnimation),
       );
       expect(effect.reward.id, reward.id);
-      final backdrop = find.byKey(const ValueKey('pcRewardBackdrop'));
-      expect(tester.widget<ColoredBox>(backdrop).color, pcDialogBackdrop);
+      expect(effect.reward.amount, closeTo(credited, .00001));
+      final backdrop = find.byKey(const ValueKey('pcRewardCardBackground'));
+      Color? cardColor() =>
+          (tester.widget<DecoratedBox>(backdrop).decoration as BoxDecoration)
+              .color;
+      expect(cardColor(), const Color(0xDC000000));
       // 三个宿主都交由到账动画管理暗底，开始收缩时不能残留父页面的遮罩。
       for (
         var frame = 0;
-        frame < 36 &&
-            tester.widget<ColoredBox>(backdrop).color != Colors.transparent;
+        frame < 36 && cardColor() != Colors.transparent;
         frame++
       ) {
         await frames(tester, 50);
       }
       expect(find.byType(PCQuizRewardAnimation), findsOneWidget);
-      expect(tester.widget<ColoredBox>(backdrop).color, Colors.transparent);
+      expect(cardColor(), Colors.transparent);
       expect(
         find.ancestor(
           of: find.byType(PCQuizRewardAnimation),
@@ -234,25 +251,20 @@ void main() {
       expect(PCDialogCoordinator.instance.isBusy, isTrue);
       await frames(tester, 2400);
       final prefs = await SharedPreferences.getInstance();
-      expect(
-        prefs.getDouble('pc_quiz_gold'),
-        closeTo(10.25 + reward.amount, .0001),
-      );
+      expect(prefs.getDouble('pc_quiz_gold'), closeTo(10.25 + credited, .0001));
       expect(
         prefs.getDouble('pc_pig_level_index'),
         prefs.getDouble('pc_quiz_gold'),
       );
       expect(prefs.getDouble('pc_dollar_number'), 100);
       expect(find.byType(PCAwardDialog), findsNothing);
-      expect(adPlacements, switch (source) {
-        'quiz' => ['nkmdl_quizgetc_rv'],
-        'wheel' => ['nkmdl_wheel_rv'],
-        _ => isEmpty,
-      });
-      expect(
-        interstitialPlacements,
-        source == 'home' ? ['nkmdl_moneybub_getpop_int'] : isEmpty,
-      );
+      final (rewarded, interstitial) = switch (source) {
+        'quiz' => ('nkmdl_quizgetc_rv', 'nkmdl_quizgetinfor_int'),
+        'wheel' => ('nkmdl_wheel_rv', 'nkmdl_wheel_int'),
+        _ => ('nkmdl_moneybub_getpop_rv', 'nkmdl_moneybub_getpop_int'),
+      };
+      expect(adPlacements, [if (!singleClaim) rewarded]);
+      expect(interstitialPlacements, [if (singleClaim) interstitial]);
       expect(find.byType(PCQuizRewardAnimation), findsNothing);
       expect(tester.takeException(), isNull);
       // 免费入口新增周期倒计时，须在WidgetTester检查定时器前退出页面并释放控制器。

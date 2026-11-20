@@ -6,12 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pennypilotcollectspin/PCDialog/PCAward/PCAwardDialog.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCGuide/PCNewUserHomeFlow.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCGuide/PCGuide1Dialog.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCGuide/PCGuide2Dialog.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCGuide/PCGuide3Dialog.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCCash/PCAccountFeedbackDialog.dart';
 import 'package:pennypilotcollectspin/PCTool/PCNewUserGuideController.dart';
+import 'package:pennypilotcollectspin/PCTool/PCAnalytics.dart';
+import 'package:pennypilotcollectspin/PCTool/PCQuizRewardAnimation.dart';
 import 'package:pennypilotcollectspin/PCTool/PCRewardedAdService.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:pennypilotcollectspin/PCDialog/PCGuide/PCCheckInDialog.dart';
@@ -80,8 +83,8 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('PayPal'), findsOneWidget);
     expect(find.text('Cash App'), findsOneWidget);
-    expect(find.text('PiX'), findsOneWidget);
-    expect(find.text('PagBank'), findsOneWidget);
+    expect(find.text('PiX'), findsNothing);
+    expect(find.text('PagBank'), findsNothing);
     var confirm = tester.widget<InkWell>(
       find
           .ancestor(of: find.text('Confirm'), matching: find.byType(InkWell))
@@ -108,79 +111,97 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   });
 
-  testWidgets('巴西默认 PagBank，PIX 带独立 CPF 与 Name 字段并适配键盘', (tester) async {
-    tester.view.physicalSize = const Size(320, 568);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      MaterialApp(home: PCWithdrawPage(countryCode: 'BR')),
-    );
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-    expect(find.text('PagBank'), findsOneWidget);
-    expect(find.text('PayPal'), findsOneWidget);
-    expect(find.text('Cash App'), findsOneWidget);
-    expect(find.text('PiX'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
-    await tester.tap(find.text('PiX'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(TextField), findsNWidgets(3));
-    tester.view.viewInsets = const FakeViewPadding(bottom: 260);
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-    tester.view.resetViewInsets();
-  });
+  for (final (size, navigationBar, keyboard, needsScroll) in [
+    (const Size(320, 568), 48.0, 300.0, false),
+    (const Size(430, 932), 24.0, 360.0, false),
+    (const Size(320, 568), 48.0, 405.0, true),
+  ]) {
+    testWidgets('收款页在 $size 下避开导航栏和 ${keyboard.toInt()} 高的键盘', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      final safeArea = FakeViewPadding(top: 24, bottom: navigationBar);
+      tester.view.viewPadding = safeArea;
+      tester.view.padding = safeArea;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewPadding);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewInsets);
+      PCWithdrawDetails? submitted;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PCWithdrawPage(onSubmitted: (value) => submitted = value),
+        ),
+      );
+      final confirm = find.ancestor(
+        of: find.text('Confirm'),
+        matching: find.byType(InkWell),
+      );
+      final beforeKeyboard = tester.getRect(confirm);
+      expect(beforeKeyboard.bottom, lessThan(size.height - navigationBar));
+      expect(beforeKeyboard.height, greaterThanOrEqualTo(44));
 
-  testWidgets('小屏同时显示四个收款渠道，切换表单保留各渠道输入', (tester) async {
+      await tester.enterText(find.byType(TextField), 'test@example.com');
+      tester.view.padding = const FakeViewPadding(top: 24);
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText))
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
+      if (needsScroll) {
+        await tester.ensureVisible(confirm);
+        await tester.pumpAndSettle();
+      }
+      final aboveKeyboard = tester.getRect(confirm);
+      expect(aboveKeyboard.height, beforeKeyboard.height);
+      expect(aboveKeyboard.bottom, lessThanOrEqualTo(size.height - keyboard));
+      expect(confirm.hitTestable(), findsOneWidget);
+      await tester.tap(confirm);
+      await tester.pump();
+      expect(submitted?.account, 'test@example.com');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('小屏所有地区只显示 PayPal 和 Cash App，切换后共用输入标题', (tester) async {
     tester.view.physicalSize = const Size(320, 568);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
-      const MaterialApp(home: PCWithdrawPage(countryCode: 'US')),
+      const MaterialApp(home: PCWithdrawPage(countryCode: 'BR')),
     );
     await tester.pump();
-    for (final name in ['PayPal', 'Cash App', 'PiX', 'PagBank']) {
+    for (final name in ['PayPal', 'Cash App']) {
       final rect = tester.getRect(find.text(name));
       expect(rect.left, greaterThanOrEqualTo(0));
       expect(rect.right, lessThanOrEqualTo(320));
-      expect(rect.bottom, lessThanOrEqualTo(568));
     }
-
-    await tester.tap(find.text('Cash App'));
-    await tester.pump(const Duration(milliseconds: 200));
+    for (final name in ['PiX', 'PagBank']) {
+      expect(find.text(name), findsNothing);
+    }
+    expect(find.text('Email/Phone Number'), findsOneWidget);
+    final field = find.byType(TextField);
     expect(
-      tester.widget<TextField>(find.byType(TextField)).keyboardType,
-      TextInputType.phone,
-    );
-    await tester.enterText(find.byType(TextField), '1234567890');
-
-    await tester.tap(find.text('PagBank'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      tester.widget<TextField>(find.byType(TextField)).keyboardType,
+      tester.widget<TextField>(field).keyboardType,
       TextInputType.emailAddress,
     );
-    expect(find.text('1234567890'), findsNothing);
-
-    await tester.tap(find.text('PiX'));
+    await tester.enterText(field, 'player@example.com');
+    await tester.tap(find.text('Cash App'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(TextField), findsNWidgets(3));
-    expect(find.text('CPF'), findsNWidgets(2));
-    expect(find.text('Name'), findsNWidgets(2));
-
+    expect(find.text('Email/Phone Number'), findsOneWidget);
+    expect(tester.widget<TextField>(field).keyboardType, TextInputType.phone);
+    await tester.enterText(field, '2025550123');
     await tester.tap(find.text('PayPal'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.byType(TextField), findsOneWidget);
     expect(
-      tester.widget<TextField>(find.byType(TextField)).keyboardType,
-      TextInputType.emailAddress,
+      tester.widget<TextField>(field).controller?.text,
+      'player@example.com',
     );
-
-    await tester.tap(find.text('Cash App'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('1234567890'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   Future<void> showGuide(
@@ -213,6 +234,81 @@ void main() {
         matching: find.byType(ParticleButton),
       )
       .first;
+
+  testWidgets('新手三题每答对一题都先显示免广告的领奖弹窗', (tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({
+      PCNewUserGuideController.progressKey: 3,
+      PCNewUserGuideController.flowKey: '{"stage":"quiz"}',
+    });
+    final events = <String>[];
+    final originalReporter = PCAnalytics.reporter;
+    PCAnalytics.reporter = (name, _) => events.add(name);
+    addTearDown(() => PCAnalytics.reporter = originalReporter);
+    final controller = PCNewUserGuideController();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 300));
+      controller.dispose();
+    });
+
+    await showGuide(tester, controller);
+    for (var index = 0; index < 3; index++) {
+      final question = find.byType(PCGuideQuizDialog);
+      for (var frame = 0; frame < 6 && question.evaluate().isEmpty; frame++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(
+        question,
+        findsOneWidget,
+        reason: '第 ${index + 1} 题，当前阶段：${controller.stage}，已展示事件：$events',
+      );
+      expect(tester.widget<PCGuideQuizDialog>(question).index, index);
+      await tester.tap(
+        find.descendant(
+          of: question,
+          matching: find.byKey(const ValueKey('pcQuizAnswerA')),
+        ),
+      );
+      await tester.pump();
+      if (index == 0) {
+        // 反馈期间路由被外部关闭，Flutter 不会返回答案，但点击已有效。
+        await tester.pump(const Duration(milliseconds: 500));
+        Navigator.of(tester.element(question)).pop();
+      } else {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      for (var frame = 0; frame < 4; frame++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(controller.stage, PCNewUserStage.quizReward);
+      expect(question, findsNothing);
+      final award = tester.widget<PCAwardDialog>(find.byType(PCAwardDialog));
+      expect(award.adsEnabled, false);
+      expect(award.showAdBadge, false);
+      expect(award.award, greaterThan(0));
+      await tester.tap(find.text('Claim').last);
+      for (var frame = 0; frame < 4; frame++) {
+        await tester.pump(const Duration(milliseconds: 180));
+      }
+      expect(find.byType(PCQuizRewardAnimation), findsOneWidget);
+      expect(question, findsNothing);
+      for (var frame = 0; frame < 8; frame++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.byType(PCQuizRewardAnimation), findsNothing);
+      expect(controller.correctMask, (1 << (index + 1)) - 1);
+    }
+    expect(controller.stage, PCNewUserStage.withdrawalEligibility);
+    expect(
+      events.where((event) => event == 'new_quiz_correct_pop'),
+      hasLength(3),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   Future<void> tapDuringCheckInExit(
     WidgetTester tester,

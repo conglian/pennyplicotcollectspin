@@ -18,13 +18,12 @@ import 'PCNewUserGuideController.dart';
 import 'PCNumberManager.dart';
 import 'PCPigUpgradeController.dart';
 import 'PCProcessFlowController.dart';
-import 'PCWithdrawValidation.dart';
 import 'PCWithdrawalController.dart';
 import 'pc_LocalProvider.dart';
 import 'pc_extension_help.dart';
 
 /// 3.7 流程调度：奖励及到账动画优先，随后审核、收集提醒和排行逐个展示。
-/// 关闭任一提示不改奖励；账号先保存本地脱敏信息，确认横幅退场后继续答题。
+/// 关闭任一提示不改奖励；完整账号先保存到本机，确认横幅退场后继续答题。
 class PCProcessFlowHost extends StatefulWidget {
   const PCProcessFlowHost({
     super.key,
@@ -264,20 +263,14 @@ class _PCProcessFlowHostState extends State<PCProcessFlowHost>
     );
     if (!mounted || details == null) return;
     final prefs = await SharedPreferences.getInstance();
-    // 与既有表单一致：资源序号为PayPal、PiX、Cash App、PagBank。
-    final methodName = details.method.name;
-    final index = switch (methodName) {
-      'pix' => 1,
-      'cashApp' => 2,
-      'pagBank' => 3,
-      _ => 0,
-    };
-    final rawAccount = details.account.trim();
-    final account = rawAccount.contains('*')
-        ? rawAccount
-        : PCWithdrawValidation.mask(rawAccount);
-    if (!await prefs.setInt(provider.pc_account_seled_indexName, index) ||
-        !await prefs.setString(provider.pc_account_idName, account)) {
+    if (!await prefs.setInt(
+          provider.pc_account_seled_indexName,
+          details.method.storageIndex,
+        ) ||
+        !await prefs.setString(
+          provider.pc_account_idName,
+          details.account.trim(),
+        )) {
       throw StateError('Unable to save payment information');
     }
     await provider.init();

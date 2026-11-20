@@ -1,3 +1,4 @@
+import '../../PCTool/PCProgressMotion.dart';
 import '../../PCTool/PCAnalytics.dart';
 import 'package:flutter/material.dart';
 
@@ -183,11 +184,15 @@ class PCGoldPigUpgradeDialog extends StatelessWidget {
                     ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
+                      child: PCProgressMotion(
                         value: gold.clamp(0, 10) / 10,
-                        minHeight: 10,
-                        backgroundColor: const Color(0xFFD9C386),
-                        color: const Color(0xFFFFAC14),
+                        builder: (_, animatedProgress, _) =>
+                            LinearProgressIndicator(
+                              value: animatedProgress,
+                              minHeight: 10,
+                              backgroundColor: const Color(0xFFD9C386),
+                              color: const Color(0xFFFFAC14),
+                            ),
                       ),
                     ),
                   ],

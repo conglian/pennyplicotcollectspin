@@ -1,3 +1,5 @@
+import '../PCTool/PCProgressMotion.dart';
+import '../PCTool/PCWithdrawMethod.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -68,7 +70,6 @@ class PCQuizState extends State<PCQuiz>
   bool _bannerOverlayScheduled = false;
   bool _bannerRouteCurrent = true;
   String? _toast;
-  final GlobalKey _balanceTarget = GlobalKey(debugLabel: 'pcQuizBalance');
   PCDialogCoordinator get _dialogs => PCDialogCoordinator.instance;
   PCProcessFlowController get _processFlow => PCProcessFlowController.instance;
   bool get _bannerSuppressed =>
@@ -485,41 +486,50 @@ class PCQuizState extends State<PCQuiz>
     final provider = PCLocalProvider.instance;
     PCQuizReward? claimed;
     try {
+      Future<bool> settleClaim({bool doubleGold = false}) async {
+        try {
+          claimed = await _flow.claim(
+            expectedRewardId: reward.id,
+            doubleGold: doubleGold,
+          );
+          if (claimed != null && mounted) {
+            // 先保留到账动画的展示权，再由按钮关闭领奖弹窗。
+            _releaseEffectPresentation ??= _holdPresentation();
+          }
+          return claimed != null;
+        } catch (_) {
+          if (mounted) {
+            PCDialogTool.toast(
+              context,
+              'Could not claim reward. Please try again.',
+            );
+          }
+          return false;
+        }
+      }
+
       await context.tipShow2(
         PCAwardDialog(
           award: reward.amount,
           reward: reward,
           balance: provider.pc_dollar_number,
           withdrawalTarget: _flow.config.withdrawalTarget,
-          paymentAsset: 'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
-          remainingCollectible: reward.type == PCQuizRewardType.diamond
-              ? math.max(0, PCQuizConfig.diamondTarget - _flow.diamonds)
-              : math.max(0, PCQuizConfig.goldTarget - _flow.gold),
+          paymentAsset: PCWithdrawMethod.forDisplay(
+            provider.pc_account_seled_index,
+          ).paymentAsset,
+          collectibleCount: reward.type == PCQuizRewardType.diamond
+              ? _flow.diamonds
+              : _flow.gold,
           analyticsSource: 'quiz',
           claimAdPlacement: 'nkmdl_quizgetc_rv',
           closeAdPlacement: 'nkmdl_quizgetinfor_int',
           onAbandon: () async {
             await _flow.discardPendingReward(expectedRewardId: reward.id);
           },
-          onClaim: () async {
-            try {
-              claimed = await _flow.claim(expectedRewardId: reward.id);
-              if (claimed != null && mounted) {
-                // 先保留到账动画的展示权，再由按钮关闭领奖弹窗。
-                _releaseEffectPresentation ??= _holdPresentation();
-              }
-              return claimed != null;
-            } catch (_) {
-              if (mounted) {
-                PCDialogTool.toast(
-                  context,
-                  'Could not claim reward. Please try again.',
-                );
-              }
-              return false;
-            }
-          },
+          onClaim: settleClaim,
+          onDoubleClaim: () => settleClaim(doubleGold: true),
         ),
+        bc: PCAwardDialog.backdropFor(reward.type),
         scaleContent: false,
       );
     } finally {
@@ -633,7 +643,7 @@ class PCQuizState extends State<PCQuiz>
                           height: headerHeight * scale,
                           child: PCBalanceHeader(
                             provider: provider,
-                            rewardTarget: _balanceTarget,
+                            rewardTarget: pcQuizBalanceTargetKey,
                           ),
                         ),
                         SizedBox(height: gap),
@@ -667,7 +677,7 @@ class PCQuizState extends State<PCQuiz>
                         child: PCQuizRewardAnimation(
                           reward: _effect!,
                           balance: provider.pc_dollar_number,
-                          targetKey: _balanceTarget,
+                          targetKey: pcQuizBalanceTargetKey,
                           onFinished: _rewardFinished,
                         ),
                       ),
@@ -868,7 +878,7 @@ class _QuizProgressTimelineState extends State<_QuizProgressTimeline> {
                   height: 48,
                   child: Stack(
                     children: [
-                      _buildLeadingProgress(answered, sidePadding, itemWidth),
+                      _buildProgress(answered, contentWidth),
                       ...List.generate(
                         _milestoneCount,
                         (index) => _buildMilestone(
@@ -889,28 +899,32 @@ class _QuizProgressTimelineState extends State<_QuizProgressTimeline> {
     );
   }
 
-  Widget _buildLeadingProgress(
-    int answered,
-    double sidePadding,
-    double itemWidth,
-  ) {
-    final double progress = (answered / 2).clamp(0.0, 1.0).toDouble();
-    const double progressHeight = 12;
-    const double trackInset = 2;
+  Widget _buildProgress(int answered, double contentWidth) {
+    const progressHeight = 12.0;
+    const trackInset = 2.0;
+    const leadingWidth = _sidePadding + _itemWidth / 2 - trackInset;
+    final maxWidth = contentWidth - 2 * trackInset;
+    final filledWidth = answered <= 2
+        ? leadingWidth * answered / 2
+        : leadingWidth + (answered - 2) * _itemWidth / 3;
+
     return Positioned(
       left: trackInset,
+      right: trackInset,
       top: (48 - progressHeight) / 2,
-      width: sidePadding + (itemWidth / 2) - trackInset,
       height: progressHeight,
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: FractionallySizedBox(
-          widthFactor: progress,
-          heightFactor: 1,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: '#27D31D'.color(),
-              borderRadius: BorderRadius.circular(progressHeight / 2),
+      child: PCProgressMotion(
+        value: (filledWidth / maxWidth).clamp(0.0, 1.0),
+        builder: (_, position, _) => Align(
+          alignment: Alignment.centerLeft,
+          child: FractionallySizedBox(
+            widthFactor: position,
+            heightFactor: 1,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: '#27D31D'.color(),
+                borderRadius: BorderRadius.circular(progressHeight / 2),
+              ),
             ),
           ),
         ),
@@ -929,10 +943,6 @@ class _QuizProgressTimelineState extends State<_QuizProgressTimeline> {
     final bool showGlow =
         widget.showHints && unlocked && !_clickedMilestones.contains(index);
     final double left = sidePadding + (index * itemWidth);
-    final double segmentProgress = ((answered - milestone) / 3)
-        .clamp(0.0, 1.0)
-        .toDouble();
-
     return Positioned(
       left: left,
       top: 0,
@@ -941,26 +951,6 @@ class _QuizProgressTimelineState extends State<_QuizProgressTimeline> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (index < _milestoneCount - 1)
-            Positioned(
-              left: itemWidth / 2,
-              top: (48 - 12) / 2,
-              width: itemWidth,
-              height: 12,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: segmentProgress,
-                  heightFactor: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: '#27D31D'.color(),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           Positioned.fill(
             child: ParticleButton(
               key: ValueKey('pcQuizMilestone$index'),

@@ -20,6 +20,10 @@ public class BroadcastNotificationReceiver extends BroadcastReceiver {
     private static final Map<Integer, BroadcastNotificationReceiver> sInstances = new HashMap<>();
 
     public static void add(Context context, String broadcast) {
+        add(context, broadcast, null);
+    }
+
+    public static void add(Context context, String broadcast, String dataScheme) {
         NotificationDetails details = FlutterBroadcastNotificationPlugin.extractNotificationDetails(context, broadcast);
         if (details == null) return;
         BroadcastNotificationReceiver previous = sInstances.remove(details.id);
@@ -28,6 +32,7 @@ public class BroadcastNotificationReceiver extends BroadcastReceiver {
         receiver.broadcast = broadcast;
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(broadcast);
+        if (!StringUtils.isNullOrEmpty(dataScheme)) intentFilter.addDataScheme(dataScheme);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(receiver, intentFilter, Context.RECEIVER_NOT_EXPORTED);
         } else {

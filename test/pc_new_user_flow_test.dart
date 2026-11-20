@@ -67,11 +67,11 @@ void main() {
     await guide.claimQuizReward();
     expect(guide.balance, earned);
     await guide.advance(PCNewUserStage.withdrawalEligibility);
-    await guide.confirmPayment('t***.com');
+    await guide.confirmPayment('tester@example.com');
     guide.dispose();
     guide = await resume();
     expect(guide.stage, PCNewUserStage.officialNotice);
-    expect(guide.confirmedUser, 't***.com');
+    expect(guide.confirmedUser, 'tester@example.com');
     await guide.advance(PCNewUserStage.officialNotice);
     await guide.advance(PCNewUserStage.growBonus);
     await guide.advance(PCNewUserStage.wheelPrompt);
@@ -335,16 +335,16 @@ void main() {
     guide.dispose();
   });
 
-  for (final index in [0, 1, 2, 3]) {
-    test('新用户资料提交立即持久化脱敏公共账号和渠道$index，冷启动保留', () async {
+  for (final index in [0, 2]) {
+    test('新用户资料提交立即持久化完整公共账号和渠道$index，冷启动保留', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         PCNewUserGuideController.flowKey,
         '{"stage":"payment"}',
       );
       final guide = await resume();
-      await guide.confirmPayment('player@example.com', paymentIndex: index);
-      final account = PCWithdrawValidation.mask('player@example.com');
+      final account = index == 0 ? 'player@example.com' : '2025550123';
+      await guide.confirmPayment(account, paymentIndex: index);
       expect(prefs.getString('pc_account_id'), account);
       expect(prefs.getInt('pc_account_seled_index'), index);
       expect(guide.confirmedUser, account);
@@ -374,20 +374,16 @@ void main() {
     expect(PCNewUserConfig.fromRaw('broken').firstAdPrize, 6);
   });
 
-  test('提现邮箱、美国电话及 PIX 四类字段按文档校验', () {
+  test('PayPal 邮箱和 Cash App 电话按渠道校验', () {
     expect(PCWithdrawValidation.email('test@example.com'), true);
     expect(PCWithdrawValidation.email('bad@'), false);
     expect(PCWithdrawValidation.cashPhone('1234567890'), true);
     expect(PCWithdrawValidation.cashPhone('123456789'), false);
-    expect(PCWithdrawValidation.cpf('12345678901'), true);
-    expect(PCWithdrawValidation.name('name@example.com'), false);
-    expect(PCWithdrawValidation.pixPhone('+5511999999999'), true);
-    expect(PCWithdrawValidation.pixPhone('5511999999999'), false);
+    expect(PCWithdrawValidation.displayAccount('a***.com'), '—');
     expect(
-      PCWithdrawValidation.evp('12345678-1234-1234-1234-123456789012'),
-      true,
+      PCWithdrawValidation.displayAccount('account*name@example.com'),
+      'account*name@example.com',
     );
-    expect(PCWithdrawValidation.evp('1234'), false);
   });
 }
 

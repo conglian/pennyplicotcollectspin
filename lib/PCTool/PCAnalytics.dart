@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'PCLogger.dart';
 import 'PCTBAEventTool.dart';
 
 /// 产品事件统一使用本地TBA协议；业务不接触请求参数混淆和设备信息。
@@ -11,7 +12,7 @@ abstract final class PCAnalytics {
   @visibleForTesting
   static void Function(String, Map<String, dynamic>) reporter = pc_event_fire;
   @visibleForTesting
-  static Future<void> Function() installReporter = pc_install_fire;
+  static Future<bool> Function() installReporter = pc_install_fire;
   @visibleForTesting
   static Future<void> Function() sessionReporter = pc_session_fire;
 
@@ -27,6 +28,9 @@ abstract final class PCAnalytics {
   static const cashMilestoneKey = 'pc_tba_cash_milestone_v1';
   static const adMilestoneKey = 'pc_tba_ad_milestone_v1';
   static const installKey = 'pc_tba_install_reported_v1';
+  static const _legacyInstallKey = 'pc_install_status';
+  static Future<void>? _installInFlight;
+  static bool _installAcknowledged = false;
   static const notificationSeenKey = 'pc_tba_notification_seen_v1';
   static const _notificationChannel = MethodChannel(
     'dexterous.com/flutter/local_notifications',
@@ -78,14 +82,34 @@ abstract final class PCAnalytics {
     }
   }
 
-  static Future<void> install() => _serial(() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(installKey) ?? false) return;
-    final existingInstallation = prefs.containsKey('pc_install_status');
-    if (!await prefs.setBool(installKey, true)) return;
-    // 升级已有存档不能重新算安装；网络上报不能阻塞首次进入应用。
-    if (!existingInstallation) unawaited(installReporter());
-  });
+  static Future<void> install() =>
+      _installInFlight ??= _reportInstall().whenComplete(() {
+        _installInFlight = null;
+      });
+
+  static Future<void> _reportInstall() async {
+    if (_installAcknowledged) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // 旧版成功与失败使用相同标记，升级后继续按已有安装去重。
+      if (prefs.getBool(installKey) == true ||
+          prefs.containsKey(_legacyInstallKey)) {
+        return;
+      }
+      if (!await installReporter()) return;
+
+      _installAcknowledged = true;
+      final saved = await prefs.setBool(installKey, true);
+      final legacySaved = await prefs.setBool(_legacyInstallKey, true);
+      if (!saved && !legacySaved) {
+        asLog.error('[TBA][install] Could not persist acknowledgement');
+      }
+    } catch (error) {
+      asLog.error(
+        '[TBA][install] Could not complete report (${error.runtimeType})',
+      );
+    }
+  }
 
   static Future<void> session() => sessionReporter();
 
@@ -110,12 +134,11 @@ abstract final class PCAnalytics {
         final type = row['type'];
         if (id is! String ||
             id.isEmpty ||
-            !const {'local', 'unlock', 'fcm'}.contains(type)) {
+            type is! String ||
+            !RegExp(r'^[a-zA-Z0-9_]{1,40}$').hasMatch(type)) {
           continue;
         }
         acknowledgements.add(id);
-        // FCM由后台口径统计；兼容清理升级前已经落盘的FCM记录。
-        if (type == 'fcm') continue;
         if (!seen.add(id)) continue;
         final latest = seen.toList();
         if (!await prefs.setStringList(
@@ -146,6 +169,8 @@ abstract final class PCAnalytics {
     installReporter = pc_install_fire;
     sessionReporter = pc_session_fire;
     _milestones = Future<void>.value();
+    _installInFlight = null;
+    _installAcknowledged = false;
     _notificationFlush = null;
   }
 }

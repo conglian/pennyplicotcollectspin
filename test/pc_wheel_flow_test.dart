@@ -159,6 +159,32 @@ void main() {
     restored.dispose();
   });
 
+  test('金砖激励双倍结算复用原奖励 ID，到账数据与存储金额一致', () async {
+    seed(2, 9.9);
+    final wheel = PCWheelController(random: Random(1));
+    addTearDown(wheel.dispose);
+    expect(await wheel.start(), PCWheelStartResult.started);
+    final pending = wheel.pending!.reward;
+    expect(
+      await wheel.claim(expectedRewardId: 'old', doubleGold: true),
+      isNull,
+    );
+    final reward = await wheel.claim(
+      expectedRewardId: pending.id,
+      doubleGold: true,
+    );
+    expect(reward?.id, pending.id);
+    expect(reward?.amount, closeTo(pending.amount * 2, .00001));
+    expect(await wheel.claim(expectedRewardId: pending.id), isNull);
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getDouble('pc_quiz_gold'),
+      closeTo(9.9 + reward!.amount, .00001),
+    );
+    expect(prefs.getDouble('pc_dollar_number'), 100);
+    expect(wheel.spins, 0);
+  });
+
   test('无次数不转，金砖集满仍可正常扣次转盘领奖', () async {
     for (final count in [0, -1]) {
       seed(0, 25.0, spins: count);

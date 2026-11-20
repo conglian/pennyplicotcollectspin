@@ -1,4 +1,4 @@
-/// 设置页法律条款地址；联系方式尚未配置，保留原入口提示。
+/// 设置页的隐私政策与使用条款地址。
 abstract final class PCSettingsLinks {
   static const privacyPolicy =
       'https://sites.google.com/view/pennypilotcollectspin-policy/home';

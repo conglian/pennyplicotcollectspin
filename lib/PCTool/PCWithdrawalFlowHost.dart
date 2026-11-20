@@ -1,3 +1,4 @@
+import 'PCWithdrawMethod.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -273,7 +274,11 @@ class _PCWithdrawalFlowHostState extends State<PCWithdrawalFlowHost>
 
   Future<void> _show(PCWithdrawalPrompt prompt) async {
     final provider = PCLocalProvider.instance;
-    final payment = 'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}';
+    final payment =
+        PCWithdrawMethod.fromStorageIndex(
+          provider.pc_account_seled_index,
+        )?.paymentAsset ??
+        '';
     switch (prompt.kind) {
       case PCWithdrawalPromptKind.diamondUpgrade:
         await _present(

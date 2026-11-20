@@ -1,3 +1,5 @@
+import '../PCTool/PCProgressMotion.dart';
+import '../PCTool/PCWithdrawMethod.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -26,6 +28,7 @@ import '../PCTool/PCInterstitialAdService.dart';
 import '../PCTool/PCPigUpgradeController.dart';
 import '../PCTool/PCDialogCoordinator.dart';
 import '../PCTool/PCNewUserGuideController.dart';
+import '../PCTool/PCNumberManager.dart';
 import '../PCBasic/PCTbaBar.dart' show PigsTabController;
 import '../PCDialog/PCOther/PCPigShowDialog.dart';
 import '../PCTool/PCRankData.dart';
@@ -58,6 +61,7 @@ class PChomeState extends State<PChome> with WidgetsBindingObserver {
   List<PCUserData> _rankData = [];
   Timer? _rankingRefreshTimer;
   static const _rewardSlots = {1: 0, 2: 1, 5: 2};
+  static const _rewardBubbleRewardedPlacement = 'nkmdl_moneybub_getpop_rv';
   late final PCHomeRewardController _rewards;
   final _bonusTip = PCHomeBonusTipController();
   bool _bonusTipPending = false, _bonusTipCheckScheduled = false;
@@ -309,7 +313,7 @@ class PChomeState extends State<PChome> with WidgetsBindingObserver {
                   'nkmdl_applebub_int',
                 )
               : await PCRewardedAdService.instance.requestOutcome(
-                  'nkmdl_moneybub_getpop_rv',
+                  _rewardBubbleRewardedPlacement,
                 );
           if (outcome.isSuccess && grantOnEntry && _homeRewardActive(visit)) {
             _releaseRewardPresentation ??= PCDialogCoordinator.instance
@@ -348,6 +352,34 @@ class PChomeState extends State<PChome> with WidgetsBindingObserver {
       // 入账期间的展示权交给获得弹窗队列，不能持有自己的锁等待弹窗出现。
       _releaseRewardPresentation?.call();
       _releaseRewardPresentation = null;
+      Future<bool> settleClaim({bool doubleGold = false}) async {
+        try {
+          claimed = await _rewards.claim(reward, doubleGold: doubleGold);
+        } catch (_) {
+          if (mounted) {
+            PCDialogTool.toast(
+              context,
+              'Could not save the reward. Please try again.',
+            );
+          }
+          return false;
+        }
+        if (claimed == null && mounted) {
+          PCDialogTool.toast(
+            context,
+            'Reward updated. Close this dialog and tap a bubble again.',
+          );
+        }
+        if (claimed != null && mounted) {
+          _releaseRewardPresentation ??= PCDialogCoordinator.instance
+              .holdPresentation();
+        }
+        return claimed != null;
+      }
+
+      final interstitialPlacement = isApple
+          ? 'nkmdl_applebub_getpop_int'
+          : 'nkmdl_moneybub_getpop_int';
       await context.tipShow2(
         PCAwardDialog(
           award: reward.amount,
@@ -355,45 +387,22 @@ class PChomeState extends State<PChome> with WidgetsBindingObserver {
           balance: provider.pc_dollar_number,
           withdrawalTarget:
               PCNewUserGuideController.instance.config.withdrawalTarget,
-          paymentAsset: 'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
-          remainingCollectible: reward.type == PCQuizRewardType.diamond
-              ? math.max(0.0, PCQuizConfig.diamondTarget - _rewards.diamonds)
-              : math.max(0.0, PCQuizConfig.goldTarget - _rewards.gold),
+          paymentAsset: PCWithdrawMethod.forDisplay(
+            provider.pc_account_seled_index,
+          ).paymentAsset,
+          collectibleCount: reward.type == PCQuizRewardType.diamond
+              ? _rewards.diamonds
+              : _rewards.gold,
           showAdBadge: isApple,
           claimAdPolicy: isApple
               ? PCAwardClaimAdPolicy.rewarded
               : PCAwardClaimAdPolicy.probabilityInterstitial,
-          claimAdPlacement: isApple ? 'asd_rv' : 'rv',
-          claimInterstitialAdPlacement: 'nkmdl_moneybub_getpop_int',
-          closeAdPlacement: isApple
-              ? 'nkmdl_applebub_getpop_int'
-              : 'nkmdl_moneybub_getpop_int',
-          onClaim: () async {
-            try {
-              claimed = await _rewards.claim(reward);
-            } catch (_) {
-              if (mounted) {
-                PCDialogTool.toast(
-                  context,
-                  'Could not save the reward. Please try again.',
-                );
-              }
-              return false;
-            }
-            if (claimed == null && mounted) {
-              PCDialogTool.toast(
-                context,
-                'Reward updated. Close this dialog and tap a bubble again.',
-              );
-            }
-            if (claimed != null && mounted) {
-              _releaseRewardPresentation ??= PCDialogCoordinator.instance
-                  .holdPresentation();
-            }
-            return claimed != null;
-          },
+          claimAdPlacement: isApple ? 'asd_rv' : _rewardBubbleRewardedPlacement,
+          closeAdPlacement: interstitialPlacement,
+          onClaim: settleClaim,
+          onDoubleClaim: () => settleClaim(doubleGold: true),
         ),
-        bc: pcDialogBackdrop,
+        bc: PCAwardDialog.backdropFor(reward.type),
         scaleContent: false,
         canPresent: () => _homeRewardActive(visit),
       );
@@ -928,12 +937,15 @@ class PChomeState extends State<PChome> with WidgetsBindingObserver {
                   padding: EdgeInsets.all(s(2)),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: progress,
-                      heightFactor: 1,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(s(4)),
-                        child: ColoredBox(color: '#FFDD1E'.color()),
+                    child: PCProgressMotion(
+                      value: progress,
+                      builder: (_, animatedProgress, _) => FractionallySizedBox(
+                        widthFactor: animatedProgress,
+                        heightFactor: 1,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(s(4)),
+                          child: ColoredBox(color: '#FFDD1E'.color()),
+                        ),
                       ),
                     ),
                   ),
@@ -1213,7 +1225,7 @@ class _HomeBroadcastTicker extends StatefulWidget {
 
 class _HomeBroadcastTickerState extends State<_HomeBroadcastTicker>
     with SingleTickerProviderStateMixin {
-  static const List<int> _cashOptions = [50, 80, 100];
+  final _random = math.Random();
 
   late final AnimationController _controller;
   Timer? _timer;
@@ -1246,10 +1258,10 @@ class _HomeBroadcastTickerState extends State<_HomeBroadcastTicker>
   }
 
   String _randomMessage() {
-    final math.Random random = math.Random();
     final String userId =
-        '${10 + random.nextInt(90)}****${100 + random.nextInt(900)}';
-    final int cash = _cashOptions[random.nextInt(_cashOptions.length)];
+        '${10 + _random.nextInt(90)}***${10 + _random.nextInt(90)}';
+    final amounts = PCNumberHelpers().pc_homeBroadcastAmounts;
+    final int cash = amounts[_random.nextInt(amounts.length)];
     return 'Congrats! User $userId just cashed out \$$cash!';
   }
 

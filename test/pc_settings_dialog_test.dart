@@ -7,6 +7,7 @@ import 'package:pennypilotcollectspin/PCTool/PCDialogCoordinator.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_img.dart';
+import 'package:pennypilotcollectspin/PCTool/pc_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -22,8 +23,7 @@ void main() {
     Future<void> Function(bool)? background,
     Future<void> Function(bool)? effects,
     Future<void> Function()? privacy,
-    contact,
-    terms,
+    Future<void> Function()? terms,
     Size size = const Size(375, 812),
     EdgeInsets padding = EdgeInsets.zero,
   }) async {
@@ -45,7 +45,6 @@ void main() {
                   onBackgroundMusicChanged: background,
                   onSoundEffectsChanged: effects,
                   onPrivacyPolicy: privacy,
-                  onContactUs: contact,
                   onTermsOfUse: terms,
                 ),
               ),
@@ -127,15 +126,11 @@ void main() {
     await close(tester);
   });
 
-  testWidgets('隐私及联系地址暂空时仅面板内提示，不覆盖新弹窗', (tester) async {
+  testWidgets('隐私政策或使用条款未配置时在面板内提示', (tester) async {
     await open(tester);
     await tester.tap(find.byKey(const ValueKey('pcSettingsPrivacy')));
     await tester.pumpAndSettle();
     expect(find.text('Privacy Policy is not available yet.'), findsOneWidget);
-    expect(find.byType(PCSettingsDialog), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pcSettingsContact')));
-    await tester.pumpAndSettle();
-    expect(find.text('Contact details are not available yet.'), findsOneWidget);
     expect(find.byType(PCSettingsDialog), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('pcSettingsTerms')));
     await tester.pumpAndSettle();
@@ -144,7 +139,7 @@ void main() {
     await close(tester);
   });
 
-  testWidgets('用户条例和隐私分别调用正确入口，空联系保持局部提示且布局不重叠', (tester) async {
+  testWidgets('使用条款占用原联系行，只显示一次并与隐私政策分别打开', (tester) async {
     final calls = <String>[];
     await open(
       tester,
@@ -155,28 +150,21 @@ void main() {
         calls.add('terms');
       },
     );
-    await tester.tap(find.byKey(const ValueKey('pcSettingsTerms')));
+    expect(find.text('Terms of Use'), findsOneWidget);
+    expect(find.text('Contact Us'), findsNothing);
+    expect(find.byType(PCUnderlineTextButton), findsNothing);
+    final terms = find.byKey(const ValueKey('pcSettingsTerms'));
+    final canvas = tester.getRect(
+      find.byKey(const ValueKey('pcSettingsCanvas')),
+    );
+    final row = tester.getRect(terms);
+    expect((row.top - canvas.top) / canvas.height, closeTo(281 / 389, .001));
+    await tester.tap(terms);
     await tester.pumpAndSettle();
     expect(calls, ['terms']);
     await tester.tap(find.byKey(const ValueKey('pcSettingsPrivacy')));
     await tester.pumpAndSettle();
     expect(calls, ['terms', 'privacy']);
-    await tester.tap(find.byKey(const ValueKey('pcSettingsContact')));
-    await tester.pumpAndSettle();
-    expect(calls, ['terms', 'privacy']);
-    expect(find.text('Contact details are not available yet.'), findsOneWidget);
-    final message = tester.getRect(
-      find.byKey(const ValueKey('pcSettingsMessage')),
-    );
-    final effects = tester.getRect(
-      find.byKey(const ValueKey('pcSettingsEffects')),
-    );
-    final contact = tester.getRect(
-      find.byKey(const ValueKey('pcSettingsContact')),
-    );
-    final terms = tester.getRect(find.byKey(const ValueKey('pcSettingsTerms')));
-    expect(message.bottom, lessThan(effects.top));
-    expect(terms.top, greaterThanOrEqualTo(contact.bottom));
     expect(find.byType(PCSettingsDialog), findsOneWidget);
     await close(tester);
   });

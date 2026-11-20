@@ -62,14 +62,7 @@ android {
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
-//                "proguard-chartboost-mediation.pro"
             )
-            // 5.3.0 自带 -printmapping，会向 Gradle 不可变缓存写入映射；保留其余原规则。
-//            optimization {
-//                keepRules {
-//                    ignoreFrom("com.chartboost:chartboost-mediation-sdk:5.3.0")
-//                }
-//            }
         }
     }
 }

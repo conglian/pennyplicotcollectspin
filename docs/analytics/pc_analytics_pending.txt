@@ -8,9 +8,9 @@
 5. ad_limit_pop：遵照确认暂不新增限额/触发业务，保留现有组件曝光点。
 6. priority_user_pop / priority_user_pop_c：已确认当前开箱页曝光、下一张真实领取配置钻石奖励页Collect点击的两阶段映射正确，保持。
 7. 金苹果：入口必出nkmdl_applebub_int插屏；奖励框Claim带AD并出asd_rv激励，成功才发奖；关闭按概率出nkmdl_applebub_getpop_int。
-8. 两个带AD阶段气泡：点击后的入口激励使用nkmdl_moneybub_getpop_rv。保留已确认两笔奖励/动画，后继获得框Claim仍是概率插屏；不制造额外激励调用。
+8. 首页普通奖励气泡：带AD气泡的入口激励、钻石获得框Collect和金砖获得框Claim Double均使用nkmdl_moneybub_getpop_rv。美元Claim及关闭、钻石Give Up、金砖底部Claim的概率插屏使用nkmdl_moneybub_getpop_int。
 9. 2026-10-28最新：冷启动需要开屏和热启动回前台都直接走正常nkmdl_launch插屏入口，不在外层检查缓存，由管理器记录chance及失败原因；提现video任务保留withdrawal_task_video。
-10. inform_p：排除FCM，其余实际通知发送均记录，含前台服务首次、余额更新、15分钟刷新、媒体/固定/亮锁屏。计划注册不算曝光。FCM历史队列只确认清除，不报告曝光；通知点击inform_c仍按local/unlock/fcm区分。
+10. inform_p / inform_c：按实际通知展示/点击记录。截图类型 local、unlock、fcm 分别用于本地定时、解锁和FCM；其余场景按功能补 background、media、foreground_service、screen_on/off、power_connected/disconnected、system_*、package_*。Home 键退出和普通退后台的曝光、点击统一使用 background。计划注册不算曝光。
 
 当前无需补充的未知项。暂缓范围仅广告上限业务触发。
 

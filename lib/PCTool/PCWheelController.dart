@@ -157,7 +157,10 @@ class PCWheelController extends ChangeNotifier {
     }
   }
 
-  Future<PCQuizReward?> claim({String? expectedRewardId}) async {
+  Future<PCQuizReward?> claim({
+    String? expectedRewardId,
+    bool doubleGold = false,
+  }) async {
     if (_busy) return null;
     _busy = true;
     _notify();
@@ -170,10 +173,11 @@ class PCWheelController extends ChangeNotifier {
         await ledger.grantDaily(_now());
         final raw = _read(storageKey);
         if (raw == null) return null;
-        final reward = PCWheelTurn.fromJson(raw).reward;
-        if (expectedRewardId != null && reward.id != expectedRewardId) {
+        final pending = PCWheelTurn.fromJson(raw).reward;
+        if (expectedRewardId != null && pending.id != expectedRewardId) {
           return null;
         }
+        final reward = pending.forSettlement(doubleGold: doubleGold);
         final progress = await PCPigProgress.sync(_prefs!);
         double add(double current, double limit) =>
             min(limit, ((current + reward.amount) * 100).round() / 100);

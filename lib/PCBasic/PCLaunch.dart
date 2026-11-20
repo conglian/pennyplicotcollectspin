@@ -82,25 +82,22 @@ class PCLaunchState extends State<PCLaunch> {
     PCAnalytics.event('launch_page', {'source_from': source});
   }
 
-  void pc_getUserCloakConfig() async {
+  Future<void> pc_getUserCloakConfig() async {
     try {
       PCAnalytics.event('cloak_req');
       var responseData = await PCRequestHelpers().getCloak();
       asLog.info('pigpennyp Config Result: $responseData');
+      PCLocalProvider.instance.updateBool(
+        PCLocalProvider.instance.pc_cloak_statusName,
+        responseData.toString() == 'ashland',
+      );
       // getCloak失败时返回null；失败和空结果不能误记为黑名单成功返回。
       if (responseData != null && responseData.toString().isNotEmpty) {
         PCAnalytics.event('cloak_suc', {
           'cloak_user': responseData.toString() == 'ashland' ? 1 : 0,
         });
+        await PCAnalytics.install();
       }
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('pc_install_status') == null) {
-        prefs.setBool('pc_install_status', true);
-      }
-      PCLocalProvider.instance.updateBool(
-        PCLocalProvider.instance.pc_cloak_statusName,
-        responseData.toString() == "ashland" ? true : false,
-      );
     } catch (e) {
       asLog.error('pigpennyp Request Error: $e');
       Future.delayed(Duration(seconds: 1), () {

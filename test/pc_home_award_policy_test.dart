@@ -9,6 +9,7 @@ import 'package:pennypilotcollectspin/PCDialog/PCOther/PCAdLoadingFailedDialog.d
 import 'package:pennypilotcollectspin/PCTool/PCDialogCoordinator.dart';
 import 'package:pennypilotcollectspin/PCTool/PCInterstitialAdService.dart';
 import 'package:pennypilotcollectspin/PCTool/PCNumberManager.dart';
+import 'package:pennypilotcollectspin/PCTool/PCQuizConfig.dart';
 import 'package:pennypilotcollectspin/PCTool/PCRewardedAdService.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
@@ -193,6 +194,90 @@ void main() {
     expect(claims, 0);
     expect(find.text('New page'), findsOneWidget);
   });
+
+  for (final (type, useRewarded, adOutcome, expectedClaims) in [
+    (PCQuizRewardType.diamond, true, PCAdOutcome.success, <String>['single']),
+    (PCQuizRewardType.diamond, false, PCAdOutcome.success, <String>[]),
+    (PCQuizRewardType.gold, true, PCAdOutcome.success, <String>['double']),
+    (PCQuizRewardType.gold, true, PCAdOutcome.failed, <String>[]),
+    (PCQuizRewardType.gold, true, PCAdOutcome.cancelled, <String>[]),
+    (PCQuizRewardType.gold, false, PCAdOutcome.failed, <String>['single']),
+  ]) {
+    testWidgets(
+      '${type.name} 奖励按钮 $useRewarded / $adOutcome 只结算 $expectedClaims',
+      (tester) async {
+        await seed(100);
+        final ad = Completer<PCAdOutcome>();
+        final placements = <String>[];
+        final claims = <String>[];
+        var discarded = 0;
+        PCRewardedAdService.instance.bindOutcomeHandler((placement) {
+          placements.add(placement);
+          return ad.future;
+        });
+        PCInterstitialAdService.instance.bindOutcomeHandler((placement) {
+          placements.add(placement);
+          return ad.future;
+        });
+        final context = await show(tester);
+        final result = context.tipShow2(
+          PCAwardDialog(
+            award: 1.25,
+            reward: PCQuizReward(
+              id: 'collectible',
+              type: type,
+              amount: 1.25,
+              questionIndex: 0,
+            ),
+            claimAdPolicy: PCAwardClaimAdPolicy.probabilityInterstitial,
+            showAdBadge: false,
+            claimAdPlacement: 'collectible_rv',
+            closeAdPlacement: 'collectible_int',
+            onClaim: () async {
+              claims.add('single');
+              return true;
+            },
+            onDoubleClaim: () async {
+              claims.add('double');
+              return true;
+            },
+            onAbandon: () async => discarded++,
+          ),
+        );
+        await frames(tester);
+        final gold = type == PCQuizRewardType.gold;
+        final secondary = gold
+            ? find.byKey(const ValueKey('pcAwardSingleClaim'))
+            : getClose();
+        expect(getBadge(), findsOneWidget);
+        final primary = tester.widget<ParticleButton>(getClaim());
+        expect(primary.breathing, isTrue);
+        await tester.tap(useRewarded ? getClaim() : secondary);
+        await frames(tester, 150);
+        await tester.tap(
+          useRewarded ? secondary : getClaim(),
+          warnIfMissed: false,
+        );
+        await frames(tester, 150);
+        expect(placements, [
+          useRewarded ? 'collectible_rv' : 'collectible_int',
+        ]);
+        expect(claims, isEmpty);
+        ad.complete(adOutcome);
+        await frames(tester);
+        if (useRewarded && adOutcome == PCAdOutcome.failed) {
+          expect(find.byType(PCAdLoadingFailedDialog), findsOneWidget);
+          await tester.tap(find.text('Try Again').last);
+          await frames(tester);
+        } else {
+          expect(find.byType(PCAdLoadingFailedDialog), findsNothing);
+        }
+        expect(await result, expectedClaims.isNotEmpty);
+        expect(claims, expectedClaims);
+        expect(discarded, expectedClaims.isEmpty ? 1 : 0);
+      },
+    );
+  }
 
   testWidgets('默认答题转盘策略仍显示AD，激励失败保留奖励且不调用概率插屏', (tester) async {
     await seed(100);

@@ -29,6 +29,7 @@ import 'package:pennypilotcollectspin/PCTool/pc_extension_help.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_img.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_shou_icon.dart';
+import 'package:pennypilotcollectspin/PCTool/pc_stroke_text.dart';
 
 void quizWidgets(String name, WidgetTesterCallback callback) {
   testWidgets(name, (tester) async {
@@ -275,20 +276,24 @@ void main() {
   quizWidgets('确认 Cash App 后保存正确图标序号，领奖展示选中的收款渠道', (tester) async {
     final provider = PCLocalProvider.instance;
     await provider.init();
-    PCWithdrawDetails? result;
+    PCWithdrawMethod? method;
     await tester.pumpWidget(
       MaterialApp(
         home: PCWithdrawPage(
           initialMethod: PCWithdrawMethod.cashApp,
-          onSubmitted: (details) => result = details,
+          onConfirm: (value) => method = value,
         ),
       ),
     );
     await tester.enterText(find.byType(TextField).first, '2025550123');
     await tester.pump();
     await tester.tap(find.text('Confirm'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(result?.method, PCWithdrawMethod.cashApp);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(find.text('Continue').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(method, PCWithdrawMethod.cashApp);
     expect(provider.pc_account_seled_index, 2);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getInt(provider.pc_account_seled_indexName), 2);
@@ -305,7 +310,7 @@ void main() {
               amount: 1,
               questionIndex: 0,
             ),
-            remainingCollectible: 20,
+            collectibleCount: 0,
           ),
         ),
       ),
@@ -315,13 +320,15 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Only \$0 Left To Withdraw', findRichText: true),
+      find.text('Just 20 Diamonds To\nCash Out!', findRichText: true),
       findsOneWidget,
     );
     expect(find.text('Diamonds Left'), findsNothing);
     expect(find.text('To Withdraw \$100'), findsNothing);
     expect(
-      find.byWidgetPredicate((w) => w is PCImg && w.name == 'pc_award_diamond'),
+      find.byWidgetPredicate(
+        (w) => w is PCImg && w.name == 'pc_collectible_award_diamond',
+      ),
       findsOneWidget,
     );
     expect(
@@ -384,11 +391,29 @@ void main() {
       expect(find.byType(PCShouIcon), findsNothing);
       await tester.pump(const Duration(milliseconds: 1979));
       expect(find.byType(PCShouIcon), findsNothing);
+      final answerButton = find.byKey(const ValueKey('pcQuizAnswerB'));
+      final label = find.descendant(
+        of: answerButton,
+        matching: find.byType(PCStrokeText),
+      );
+      final buttonBeforeHint = tester.getRect(answerButton);
+      final labelBeforeHint = tester.getRect(label);
       await tester.pump(const Duration(milliseconds: 1));
       expect(find.byType(PCShouIcon), findsOneWidget);
-      final b = tester.getRect(find.byKey(const ValueKey('pcQuizAnswerB')));
-      final hand = tester.getRect(find.byType(PCShouIcon));
-      expect(hand.center.dy, greaterThan(b.top));
+      final hand = find.descendant(
+        of: find.byType(PCShouIcon),
+        matching: find.byType(PCImg),
+      );
+      for (var frame = 0; frame < 3; frame++) {
+        expect(tester.getRect(answerButton), buttonBeforeHint);
+        expect(tester.getRect(label), labelBeforeHint);
+        expect(tester.getRect(hand).left, greaterThan(labelBeforeHint.right));
+        expect(
+          tester.getRect(hand).center.dy,
+          greaterThan(buttonBeforeHint.top),
+        );
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       final oldAnswer = tester
           .widget<PCQuizContentPanel>(find.byType(PCQuizContentPanel))
           .onAnswer!;

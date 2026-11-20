@@ -6,9 +6,9 @@ import '../../PCTool/pc_stroke_text.dart';
 import '../../PCTool/pc_text.dart';
 import 'PCOtherDialogWidgets.dart';
 
-/// 通知权限开启引导弹窗（Turn On Push Notifications）。
+/// 通知权限引导弹窗（Don't miss your cash）。
 ///
-/// 点击 Go And Open 跳转系统通知设置，返回后由召回入口重新检查权限；关闭按钮仅关闭本次引导。
+/// 点击 Enable Notifications 请求系统通知权限；Later 和关闭按钮仅关闭本次引导。
 class PCPushNotificationDialog extends StatelessWidget {
   const PCPushNotificationDialog({super.key, this.onOpen});
   final VoidCallback? onOpen;
@@ -16,7 +16,7 @@ class PCPushNotificationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PCResponsiveDialog(
-      designHeight: 372,
+      designHeight: 408,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -24,7 +24,7 @@ class PCPushNotificationDialog extends StatelessWidget {
             left: 20,
             top: 4,
             width: 320,
-            height: 368,
+            height: 400,
             child: PCImg(name: 'pc_guide3_bg'),
           ),
           const Positioned(
@@ -46,7 +46,7 @@ class PCPushNotificationDialog extends StatelessWidget {
             height: 28,
             child: Center(
               child: PCStrokeText(
-                text: 'Turn On Push Notifications',
+                text: "Don't miss your cash",
                 size: 20,
                 color: Color(0xFFFFF28B),
                 weight: FontWeight.w900,
@@ -68,7 +68,7 @@ class PCPushNotificationDialog extends StatelessWidget {
                 child: PCText(
                   key: ValueKey('pcNotificationRecallSubtitle'),
                   text:
-                      'Keep your earnings safe—get notified when it’s time to cash out',
+                      "Keep your earnings updated — get notified when it's time to cash out",
                   size: 14,
                   color: Colors.white,
                   weight: FontWeight.w500,
@@ -86,12 +86,31 @@ class PCPushNotificationDialog extends StatelessWidget {
             height: 64,
             child: PCGreenDialogButton(
               key: const ValueKey('pcNotificationRecallOpen'),
-              text: 'Go And Open',
+              text: 'Enable Notifications',
               onTap:
                   onOpen ??
                   () => AppSettings.openAppSettings(
                     type: AppSettingsType.notification,
                   ),
+            ),
+          ),
+          Positioned(
+            left: 46,
+            top: 350,
+            width: 268,
+            height: 44,
+            child: GestureDetector(
+              key: const ValueKey('pcNotificationRecallLater'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).pop(),
+              child: const Center(
+                child: PCText(
+                  text: 'Later',
+                  size: 16,
+                  color: Colors.white,
+                  weight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           Positioned(

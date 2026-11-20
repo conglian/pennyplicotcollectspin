@@ -1,3 +1,5 @@
+import 'PCProgressMotion.dart';
+import 'PCWithdrawMethod.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -22,8 +24,15 @@ class PCBalanceHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (provider.pc_pig_level > 0) {
-      return _PCCollectibleBalanceHeader(
-        provider: provider,
+      return PCCollectibleBalanceHeader(
+        type: provider.pc_pig_level == 1
+            ? PCQuizRewardType.diamond
+            : PCQuizRewardType.gold,
+        collected: provider.pc_pig_level_index,
+        withdrawalTarget: PCNumberHelpers().pc_firstTarget,
+        paymentAsset: PCWithdrawMethod.forDisplay(
+          provider.pc_account_seled_index,
+        ).paymentAsset,
         rewardTarget: rewardTarget,
       );
     }
@@ -147,10 +156,13 @@ class PCBalanceHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: (balance / withdrawTarget).clamp(0.0, 1.0),
-                    heightFactor: 1,
-                    child: ColoredBox(color: '#FFDD1E'.color()),
+                  child: PCProgressMotion(
+                    value: (balance / withdrawTarget).clamp(0.0, 1.0),
+                    builder: (_, animatedProgress, _) => FractionallySizedBox(
+                      widthFactor: animatedProgress,
+                      heightFactor: 1,
+                      child: ColoredBox(color: '#FFDD1E'.color()),
+                    ),
                   ),
                 ),
               ),
@@ -166,8 +178,9 @@ class PCBalanceHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     PCImg(
-                      name:
-                          'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
+                      name: PCWithdrawMethod.forDisplay(
+                        provider.pc_account_seled_index,
+                      ).paymentAsset,
                       width: 16,
                       height: 16,
                     ),
@@ -214,27 +227,32 @@ class PCBalanceHeader extends StatelessWidget {
   }
 }
 
-class _PCCollectibleBalanceHeader extends StatelessWidget {
-  const _PCCollectibleBalanceHeader({
-    required this.provider,
+/// 钻石和金猪余额栏；可复用在转盘获得弹窗的明亮顶部区域。
+class PCCollectibleBalanceHeader extends StatelessWidget {
+  const PCCollectibleBalanceHeader({
+    super.key,
+    required this.type,
+    required this.collected,
+    required this.withdrawalTarget,
+    required this.paymentAsset,
     this.rewardTarget,
   });
 
-  final PCLocalProvider provider;
+  final PCQuizRewardType type;
+  final double collected, withdrawalTarget;
+  final String paymentAsset;
   final GlobalKey? rewardTarget;
 
   @override
   Widget build(BuildContext context) {
-    final diamond = provider.pc_pig_level == 1;
+    final diamond = type == PCQuizRewardType.diamond;
     final stageName = diamond ? 'diamond' : 'gold';
     final target = diamond
         ? PCQuizConfig.diamondTarget
         : PCQuizConfig.goldTarget;
     // sync 已把精确的钻石/金砖数量写入此缓存；旧整数字段会丢失小数。
-    final collected = math.max(0.0, provider.pc_pig_level_index);
+    final collected = math.max(0.0, this.collected);
     final left = math.max(0.0, ((target - collected) * 100).round() / 100);
-    final withdrawTarget = PCNumberHelpers().pc_firstTarget;
-    final progress = (collected / target).clamp(0.0, 1.0);
     final accent = diamond ? '#53E9FF'.color() : '#FFDD1D'.color();
     final colors = diamond
         ? ['#2EEFFC'.color(), '#1162F9'.color()]
@@ -266,65 +284,83 @@ class _PCCollectibleBalanceHeader extends StatelessWidget {
             ),
             Positioned(
               left: trackLeft,
-              top: y(24),
+              top: y(20),
               width: trackWidth,
-              height: 16 * scale,
-              child: const PCImg(name: 'pc_stage_progress_track'),
-            ),
-            Positioned(
-              left: trackLeft + 2 * scale,
-              top: y(26),
-              width: trackWidth - 4 * scale,
-              height: 12 * scale,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: progress,
-                  heightFactor: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6 * scale),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: colors,
+              height: markerSize,
+              child: PCProgressMotion(
+                value: collected,
+                builder: (_, animatedCollected, _) => Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 4 * scale,
+                      width: trackWidth,
+                      height: 16 * scale,
+                      child: const PCImg(name: 'pc_stage_progress_track'),
+                    ),
+                    Positioned(
+                      left: 2 * scale,
+                      top: 6 * scale,
+                      width: trackWidth - 4 * scale,
+                      height: 12 * scale,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: (animatedCollected / target).clamp(
+                            0.0,
+                            1.0,
+                          ),
+                          heightFactor: 1,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6 * scale),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: colors,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: trackLeft + (trackWidth - markerSize) * progress,
-              top: y(20),
-              width: markerSize,
-              height: markerSize,
-              child: PCImg(name: 'pc_stage_progress_$stageName'),
-            ),
-            Positioned(
-              left: trackLeft + 26 * scale,
-              top: y(26),
-              width: trackWidth - 52 * scale,
-              height: 12 * scale,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _number(
-                      collected,
-                      Colors.white,
-                      size: 11 * scale,
-                      outlined: true,
+                    Positioned(
+                      left:
+                          (trackWidth - markerSize) *
+                          (animatedCollected / target).clamp(0.0, 1.0),
+                      top: 0,
+                      width: markerSize,
+                      height: markerSize,
+                      child: PCImg(name: 'pc_stage_progress_$stageName'),
                     ),
-                    PCText(
-                      text: '/${PCQuizReward.format(target)}',
-                      size: 11 * scale,
-                      color: Colors.white,
-                      weight: FontWeight.w700,
-                      shadows: const [
-                        Shadow(color: Color(0xFF003000), blurRadius: 2),
-                      ],
+                    Positioned(
+                      left: 26 * scale,
+                      top: 6 * scale,
+                      width: trackWidth - 52 * scale,
+                      height: 12 * scale,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _number(
+                              animatedCollected,
+                              Colors.white,
+                              size: 11 * scale,
+                              outlined: true,
+                            ),
+                            PCText(
+                              text: '/${PCQuizReward.format(target)}',
+                              size: 11 * scale,
+                              color: Colors.white,
+                              weight: FontWeight.w700,
+                              shadows: const [
+                                Shadow(color: Color(0xFF003000), blurRadius: 2),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -343,8 +379,7 @@ class _PCCollectibleBalanceHeader extends StatelessWidget {
                   child: Row(
                     children: [
                       PCImg(
-                        name:
-                            'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
+                        name: paymentAsset,
                         width: 20 * scale,
                         height: 20 * scale,
                       ),
@@ -353,7 +388,7 @@ class _PCCollectibleBalanceHeader extends StatelessWidget {
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           child: _number(
-                            withdrawTarget,
+                            withdrawalTarget,
                             '#FFAF00'.color(),
                             dollars: true,
                             size: 12 * scale,
@@ -474,6 +509,7 @@ class _PCCollectibleBalanceHeader extends StatelessWidget {
     key: numberKey,
     value: value,
     currentValue: value,
+    duration: outlined ? 0 : 1000,
     fontSize: size,
     fontWeight: FontWeight.w700,
     gradientColors: [color, color],

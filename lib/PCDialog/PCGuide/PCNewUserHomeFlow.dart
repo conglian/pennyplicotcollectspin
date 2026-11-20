@@ -4,11 +4,14 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../PCBasic/PCTbaBar.dart';
+import '../../PCMainVC/PCQuizContentPanel.dart';
 import '../../PCMainVC/PCWithdrawPage.dart';
+import '../../PCTool/PCDialogCoordinator.dart';
 import '../../PCTool/PCNewUserGuideController.dart';
 import '../../PCTool/PCAnalytics.dart';
 import '../../PCTool/PCAdOutcome.dart';
 import '../../PCTool/PCQuizConfig.dart';
+import '../../PCTool/PCQuizRewardAnimation.dart';
 import '../../PCTool/pc_LocalProvider.dart';
 import '../../PCTool/pc_extension_help.dart';
 import '../../PCTool/pc_text.dart';
@@ -34,6 +37,38 @@ class PCNewUserHomeFlow extends StatefulWidget {
 class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
   late final guide = widget.controller ?? PCNewUserGuideController.instance;
   MaterialPageRoute<PCWithdrawDetails>? _paymentRoute;
+  PCQuizReward? _quizReceipt;
+  Completer<void>? _quizReceiptFinished;
+
+  Future<void> _showQuizReceipt(PCQuizReward reward) async {
+    await PCDialogCoordinator.instance.enqueue<void>(
+      key: (this, reward.id),
+      canPresent: () =>
+          mounted &&
+          PigsTabController.currentIndex.value == 1 &&
+          ModalRoute.of(context)?.isCurrent == true,
+      present: () async {
+        final finished = Completer<void>();
+        _quizReceiptFinished = finished;
+        setState(() => _quizReceipt = reward);
+        await finished.future;
+        if (mounted) await WidgetsBinding.instance.endOfFrame;
+      },
+    );
+  }
+
+  void _finishQuizReceipt() {
+    if (mounted) setState(() => _quizReceipt = null);
+    _quizReceiptFinished?.complete();
+    _quizReceiptFinished = null;
+  }
+
+  @override
+  void dispose() {
+    _quizReceiptFinished?.complete();
+    _quizReceiptFinished = null;
+    super.dispose();
+  }
 
   Future<PCWithdrawDetails?> _collectPayment() {
     final submitted = Completer<PCWithdrawDetails>();
@@ -109,7 +144,7 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
     final success = await action();
     if (success) await PCLocalProvider.instance.init();
     if (!success && mounted) {
-      PCDialogTool.toast(context, 'Ad is not ready. Please try again.');
+      PCDialogTool.toast(context, 'Unable to save progress. Please try again.');
     }
     return success;
   }
@@ -175,8 +210,12 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
                 guide.quizIndex != quizIndex) {
               return;
             }
-            final correct = await _dialog(
-              PCGuideQuizDialog(index: quizIndex),
+            bool? selectedAnswer;
+            final result = await _dialog(
+              PCGuideQuizDialog(
+                index: quizIndex,
+                onAnswerSelected: (correct) => selectedAnswer = correct,
+              ),
               blankContinues: false,
               scaleContent: false,
               exposure: 'new_quiz_guide',
@@ -191,20 +230,23 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
                 guide.quizIndex != quizIndex) {
               return;
             }
-            await guide.answerQuiz(correct: correct == true);
+            // 路由被提前退出时可能没有返回值；保留实际点击，取消也不能算答错。
+            final correct = selectedAnswer ?? (result is bool ? result : null);
+            if (correct != null) await guide.answerQuiz(correct: correct);
           case PCNewUserStage.quizReward:
             PigsTabController.switchTo(1);
-            await _dialog(
+            final reward = guide.quizReward;
+            final claimed = await _dialog(
               PCAwardDialog(
                 award: guide.pendingPrize,
                 adsEnabled: false,
                 showAdBadge: false,
                 withdrawalTarget: guide.config.withdrawalTarget,
-                reward: guide.quizReward,
-                paymentAsset:
-                    'pc_act_${PCLocalProvider.instance.pc_account_seled_index.clamp(0, 3)}',
-                remainingCollectible:
-                    guide.quizReward.type == PCQuizRewardType.diamond
+                reward: reward,
+                paymentAsset: PCWithdrawMethod.forDisplay(
+                  PCLocalProvider.instance.pc_account_seled_index,
+                ).paymentAsset,
+                remainingCollectible: reward.type == PCQuizRewardType.diamond
                     ? 20 - guide.diamonds
                     : 10 - guide.gold,
                 onClaim: () {
@@ -215,6 +257,10 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
               blankContinues: false,
               exposure: 'new_quiz_correct_pop',
             );
+            if (!mounted) return;
+            if (claimed == true && guide.stage != stage) {
+              await _showQuizReceipt(reward);
+            }
           case PCNewUserStage.withdrawalEligibility:
             PigsTabController.switchTo(1);
             await _dialog(
@@ -226,15 +272,9 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
             final details = await _collectPayment();
             if (!mounted) return;
             if (details == null) continue;
-            _displayConfirmedUser = details.account;
             await guide.confirmPayment(
-              details.maskedAccount,
-              paymentIndex: switch (details.method) {
-                PCWithdrawMethod.paypal => 0,
-                PCWithdrawMethod.pix => 1,
-                PCWithdrawMethod.cashApp => 2,
-                PCWithdrawMethod.pagBank => 3,
-              },
+              details.account,
+              paymentIndex: details.method.storageIndex,
             );
             await PCLocalProvider.instance.init();
           case PCNewUserStage.officialNotice:
@@ -243,9 +283,7 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
             await _dialog(
               PCAccountFeedbackDialog(
                 onContinue: () => PCAnalytics.event('account_suc_pop_c'),
-                maskedUserId: _displayConfirmedUser.isEmpty
-                    ? guide.confirmedUser
-                    : _displayConfirmedUser,
+                account: guide.confirmedUser,
                 remainingAmount: math.max(
                   0,
                   guide.config.withdrawalTarget - guide.balance,
@@ -294,12 +332,21 @@ class _PCNewUserHomeFlowState extends State<PCNewUserHomeFlow> {
   }
 
   bool _failed = false;
-  String _displayConfirmedUser = '';
 
   @override
   Widget build(BuildContext context) => Stack(
     children: [
       widget.child,
+      if (_quizReceipt case final reward?)
+        Positioned.fill(
+          child: PCQuizRewardAnimation(
+            key: ValueKey(reward.id),
+            reward: reward,
+            balance: guide.balance,
+            targetKey: pcQuizBalanceTargetKey,
+            onFinished: _finishQuizReceipt,
+          ),
+        ),
       if (_failed)
         Positioned.fill(
           child: ColoredBox(

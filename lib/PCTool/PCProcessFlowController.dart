@@ -350,25 +350,27 @@ class PCProcessFlowController extends ChangeNotifier {
     _pending.removeWhere((p) => p.kind == PCProcessPromptKind.confirmAccount);
   }
 
-  /// 旧引导只保存confirmedUser、渠道存在公共缓存，故在每次刷新时迁移。
-  /// 只镜像脱敏信息，已有公共账号优先；不触发确认成功横幅或重复业务导航。
+  /// 旧引导单独保存过账号；如原值仍在，补回完整账号，不覆盖已绑定的完整资料。
   Future<bool> _syncGuideAccount() async {
     String confirmedUser;
     try {
       final raw = jsonDecode(
         _prefs!.getString(PCNewUserGuideController.flowKey) ?? '{}',
       );
-      if (raw is! Map || raw['confirmedUser'] is! String) return false;
-      confirmedUser = (raw['confirmedUser'] as String).trim();
-      if (confirmedUser.isEmpty) return false;
+      if (raw is! Map) return false;
+      confirmedUser = (raw['confirmedUser'] as String? ?? '').trim();
+      if (confirmedUser.isEmpty &&
+          (raw['accountConfirmed'] != true || savedAccount.isEmpty)) {
+        return false;
+      }
     } catch (_) {
       return false;
     }
-    if (savedAccount.isEmpty) {
-      final masked = confirmedUser.contains('*')
-          ? confirmedUser
-          : PCWithdrawValidation.mask(confirmedUser);
-      if (!await _prefs!.setString('pc_account_id', masked)) {
+    if (confirmedUser.isNotEmpty &&
+        (savedAccount.isEmpty ||
+            (PCWithdrawValidation.isLegacyMask(savedAccount) &&
+                !PCWithdrawValidation.isLegacyMask(confirmedUser)))) {
+      if (!await _prefs!.setString('pc_account_id', confirmedUser)) {
         throw StateError('Unable to save confirmed guide account');
       }
     }

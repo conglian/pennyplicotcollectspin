@@ -197,6 +197,7 @@ void main() {
     final initial = [40.0, 3.0, 4.0][level];
     final first = [10.0, 2.0, 1.0][level];
     final second = [5.0, 1.0, .5][level];
+    final credited = level == 2 ? second * 2 : second;
     for (final claimSucceeded in [true, false]) {
       testWidgets(
         '阶段$level金苹果入口插屏静默到账，Claim激励${claimSucceeded ? '成功发第二笔并播放动画' : '失败保留首笔且退出失败面板'}',
@@ -254,7 +255,9 @@ void main() {
           await tester.tap(claimButton);
           await tester.tap(claimButton, warnIfMissed: false);
           await tester.tap(
-            find.byKey(const ValueKey('pcQuizCloseReward')),
+            find.byKey(
+              ValueKey(level == 2 ? 'pcAwardSingleClaim' : 'pcQuizCloseReward'),
+            ),
             warnIfMissed: false,
           );
           await frames(tester, 100);
@@ -264,7 +267,7 @@ void main() {
           claim.complete(claimSucceeded);
           await frames(tester);
           if (claimSucceeded) {
-            expect(await savedAmount(level), initial + first + second);
+            expect(await savedAmount(level), initial + first + credited);
             expect(flow.generation, generation + 2);
             expect(find.byType(PCAwardDialog), findsNothing);
             expect(find.byType(PCQuizRewardAnimation), findsOneWidget);
@@ -272,7 +275,7 @@ void main() {
               find.byType(PCQuizRewardAnimation),
             );
             expect(effect.reward.type.index, level);
-            expect(effect.reward.amount, second);
+            expect(effect.reward.amount, credited);
           } else {
             expect(await savedAmount(level), initial + first);
             expect(flow.generation, generation + 1);
@@ -287,7 +290,7 @@ void main() {
           expect(interstitials, ['nkmdl_applebub_int']);
           expect(
             await savedAmount(level),
-            initial + first + (claimSucceeded ? second : 0),
+            initial + first + (claimSucceeded ? credited : 0),
           );
         },
       );
@@ -298,7 +301,7 @@ void main() {
     testWidgets('金苹果关闭仅按$probability%播放插屏，保留首笔不发第二笔且不播放Claim激励', (
       tester,
     ) async {
-      await seed(probability: probability);
+      await seed(level: 1, probability: probability);
       final interstitials = <String>[];
       final rewarded = <String>[];
       final closing = Completer<bool>();
@@ -314,7 +317,7 @@ void main() {
       final generation = flow.generation;
       await tester.tap(find.byKey(const ValueKey('pcHomeBubble6')));
       await frames(tester);
-      expect(await savedAmount(2), 5);
+      expect(await savedAmount(1), 5);
       expect(find.byType(PCQuizRewardAnimation), findsNothing);
       await tester.tap(find.byKey(const ValueKey('pcQuizCloseReward')));
       await tester.tap(
@@ -331,7 +334,7 @@ void main() {
       expect(find.byType(PCAwardDialog), findsNothing);
       expect(find.byType(PCQuizRewardAnimation), findsNothing);
       expect(rewarded, isEmpty);
-      expect(await savedAmount(2), 5);
+      expect(await savedAmount(1), 5);
       expect(flow.generation, generation + 1);
     });
   }
@@ -414,6 +417,7 @@ void main() {
       final initial = [40.0, 3.0, 4.0][level];
       final first = [10.0, 2.0, 1.0][level];
       final second = [5.0, 1.0, .5][level];
+      final credited = level == 2 ? second * 2 : second;
       final probability = slot == 1 ? 0 : 100;
       testWidgets('阶段$level AD气泡$slot激励后静默到账直接开获得框，Claim再到账并播放动画', (
         tester,
@@ -425,7 +429,7 @@ void main() {
         final interstitials = <String>[];
         PCRewardedAdService.instance.handler = (placement) {
           rewarded.add(placement);
-          return entry.future;
+          return rewarded.length == 1 ? entry.future : claim.future;
         };
         PCInterstitialAdService.instance.handler = (placement) {
           interstitials.add(placement);
@@ -460,15 +464,23 @@ void main() {
               (widget) => widget is PCImg && widget.name == 'pc_ad_icon',
             ),
           ),
-          findsNothing,
+          level == 0 ? findsNothing : findsOneWidget,
         );
 
         final claimButton = find.byKey(const ValueKey('pcQuizClaimReward'));
         await tester.tap(claimButton);
         await tester.tap(claimButton, warnIfMissed: false);
         await frames(tester, 100);
-        expect(rewarded, ['nkmdl_moneybub_getpop_rv']);
-        if (probability == 100) {
+        expect(rewarded, [
+          'nkmdl_moneybub_getpop_rv',
+          if (level != 0) 'nkmdl_moneybub_getpop_rv',
+        ]);
+        if (level != 0) {
+          expect(interstitials, isEmpty);
+          expect(await savedAmount(level), initial + first);
+          claim.complete(true);
+          await frames(tester);
+        } else if (probability == 100) {
           expect(interstitials, ['nkmdl_moneybub_getpop_int']);
           expect(await savedAmount(level), initial + first);
           await tester.tap(
@@ -482,18 +494,18 @@ void main() {
           expect(interstitials, isEmpty);
           await frames(tester, 500);
         }
-        expect(await savedAmount(level), initial + first + second);
+        expect(await savedAmount(level), initial + first + credited);
         expect(flow.generation, generation + 2);
         expect(find.byType(PCAwardDialog), findsNothing);
         expect(find.byType(PCQuizRewardAnimation), findsOneWidget);
         final secondEffect = tester.widget<PCQuizRewardAnimation>(
           find.byType(PCQuizRewardAnimation),
         );
-        expect(secondEffect.reward.amount, second);
+        expect(secondEffect.reward.amount, credited);
         await frames(tester, 2400);
         expect(find.byType(PCAwardDialog), findsNothing);
         expect(find.byType(PCQuizRewardAnimation), findsNothing);
-        expect(await savedAmount(level), initial + first + second);
+        expect(await savedAmount(level), initial + first + credited);
         expect(flow.generation, generation + 2);
       });
     }
@@ -522,7 +534,7 @@ void main() {
 
   for (final probability in [0, 100]) {
     testWidgets('获得弹窗关闭按$probability%插屏，保留首笔但不发第二笔或补弹', (tester) async {
-      await seed(probability: probability);
+      await seed(level: 1, probability: probability);
       PCRewardedAdService.instance.handler = (_) async => true;
       final interstitials = <String>[];
       final close = Completer<bool>();
@@ -534,7 +546,7 @@ void main() {
       final generation = flow.generation;
       await tester.tap(find.byKey(const ValueKey('pcHomeRewardBubble2')));
       await frames(tester, 600);
-      expect(await savedAmount(2), 5);
+      expect(await savedAmount(1), 5);
       expect(flow.generation, generation + 1);
       expect(find.byType(PCQuizRewardAnimation), findsNothing);
       expect(find.byType(PCAwardDialog), findsOneWidget);
@@ -544,13 +556,13 @@ void main() {
       await frames(tester, 100);
       if (probability == 100) {
         expect(interstitials, ['nkmdl_moneybub_getpop_int']);
-        expect(await savedAmount(2), 5);
+        expect(await savedAmount(1), 5);
         close.complete(false);
       } else {
         expect(interstitials, isEmpty);
       }
       await frames(tester, 2600);
-      expect(await savedAmount(2), 5);
+      expect(await savedAmount(1), 5);
       expect(flow.generation, generation + 1);
       expect(find.byType(PCQuizRewardAnimation), findsNothing);
       expect(find.byType(PCAwardDialog), findsNothing);
@@ -654,7 +666,7 @@ void main() {
     expect(await savedAmount(2), 5);
     expect(find.byType(PCQuizRewardAnimation), findsNothing);
     expect(find.byType(PCAwardDialog), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pcQuizClaimReward')));
+    await tester.tap(find.byKey(const ValueKey('pcAwardSingleClaim')));
     await frames(tester, 2600);
     expect(await savedAmount(2), 5.5);
     expect(flow.generation, generation + 2);

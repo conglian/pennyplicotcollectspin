@@ -16,7 +16,6 @@ import 'package:pennypilotcollectspin/PCTool/PCNumberManager.dart';
 import 'package:pennypilotcollectspin/PCTool/PCPigUpgradeController.dart';
 import 'package:pennypilotcollectspin/PCTool/PCProcessFlowController.dart';
 import 'package:pennypilotcollectspin/PCTool/PCProcessFlowHost.dart';
-import 'package:pennypilotcollectspin/PCTool/PCWithdrawValidation.dart';
 import 'package:pennypilotcollectspin/PCTool/pc_LocalProvider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // SharedPreferences官方内存实现，用于模拟账号落盘尚未完成的实际异步窗口。
@@ -75,8 +74,6 @@ void main() {
   for (final channel in [
     ('PayPal', 0, 'payer@example.com'),
     ('Cash App', 2, '2025550123'),
-    ('PiX', 1, 'pixpayer@example.com'),
-    ('PagBank', 3, 'bankpayer@example.com'),
   ]) {
     testWidgets('新用户${channel.$1}真实提交后，3题和80%及冷启动不再填写账号', (tester) async {
       tester.view.physicalSize = const Size(360, 780);
@@ -111,16 +108,9 @@ void main() {
       await advance(tester, 200);
 
       final fields = find.byType(TextField);
-      if (channel.$1 == 'PiX') {
-        expect(fields, findsNWidgets(3));
-        await tester.enterText(fields.at(0), '12345678901');
-        await tester.enterText(fields.at(1), 'New User');
-        await tester.ensureVisible(fields.at(2));
-        await tester.enterText(fields.at(2), channel.$3);
-      } else {
-        expect(fields, findsOneWidget);
-        await tester.enterText(fields, channel.$3);
-      }
+      expect(fields, findsOneWidget);
+      expect(find.text('Email/Phone Number'), findsOneWidget);
+      await tester.enterText(fields, channel.$3);
       // 输入触发setState后先重建，否则上一帧Confirm仍保留禁用回调。
       await tester.pump();
       await tester.ensureVisible(find.text('Confirm'));
@@ -141,13 +131,20 @@ void main() {
       expect(find.byType(PCAccountFeedbackDialog), findsOneWidget);
 
       final prefs = await SharedPreferences.getInstance();
-      final masked = PCWithdrawValidation.mask(channel.$3);
-      expect(guide.confirmedUser, masked);
+      final account = channel.$3;
+      expect(
+        tester
+            .widget<PCAccountFeedbackDialog>(
+              find.byType(PCAccountFeedbackDialog),
+            )
+            .account,
+        account,
+      );
+      expect(guide.confirmedUser, account);
       // 提交事务就必须写通用缓存；此时尚未再次refresh普通流程控制器。
-      expect(prefs.getString('pc_account_id'), masked);
-      expect(prefs.getString('pc_account_id'), isNot(channel.$3));
+      expect(prefs.getString('pc_account_id'), account);
       expect(prefs.getInt('pc_account_seled_index'), channel.$2);
-      expect(PCLocalProvider.instance.pc_account_id, masked);
+      expect(PCLocalProvider.instance.pc_account_id, account);
       expect(PCLocalProvider.instance.pc_account_seled_index, channel.$2);
 
       await tester.tap(find.text('Continue'));
@@ -174,9 +171,8 @@ void main() {
         reason: '新用户已确认的账号不能作为普通答题3题无账号再次触发',
       );
       await showProcessHost(tester, process, guide);
-      expect(prefs.getString('pc_account_id'), masked);
-      expect(prefs.getString('pc_account_id'), isNot(channel.$3));
-      expect(PCLocalProvider.instance.pc_account_id, masked);
+      expect(prefs.getString('pc_account_id'), account);
+      expect(PCLocalProvider.instance.pc_account_id, account);
       expect(PCLocalProvider.instance.pc_account_seled_index, channel.$2);
 
       await prefs.setDouble('pc_dollar_number', 85.0);
@@ -185,7 +181,7 @@ void main() {
       await advance(tester, 1600);
       expectNoAccountPages();
       expect(process.hasPending, isFalse, reason: '已确认账号跨过80%仍无需再次确认');
-      expect(PCLocalProvider.instance.pc_account_id, masked);
+      expect(PCLocalProvider.instance.pc_account_id, account);
       expect(PCLocalProvider.instance.pc_account_seled_index, channel.$2);
       await tester.pumpWidget(const SizedBox());
       await advance(tester, 300);
@@ -195,11 +191,11 @@ void main() {
       final coldGuide = PCNewUserGuideController();
       await coldGuide.load();
       expect(coldGuide.isComplete, isTrue);
-      expect(coldGuide.confirmedUser, masked);
+      expect(coldGuide.confirmedUser, account);
       final coldProcess = PCProcessFlowController();
       await coldProcess.refresh(guideComplete: coldGuide.isComplete);
       await showProcessHost(tester, coldProcess, coldGuide);
-      expect(PCLocalProvider.instance.pc_account_id, masked);
+      expect(PCLocalProvider.instance.pc_account_id, account);
       expect(PCLocalProvider.instance.pc_account_seled_index, channel.$2);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

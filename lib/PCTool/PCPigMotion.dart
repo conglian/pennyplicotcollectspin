@@ -11,17 +11,19 @@ class PCPigMotion extends StatefulWidget {
     required this.child,
     this.jumpHeight = 24,
     this.showShadow = true,
-  }) : assert(jumpHeight > 0);
+  }) : progress = null,
+       assert(jumpHeight > 0);
 
   /// 首页和弹窗主猪统一使用金猪升级页的轻跳、呼吸与漂浮节奏。
-  /// 不包裹已经包含小猪动效的Lottie，也不为进度条小图标添加动画。
-  const PCPigMotion.hero({super.key, required this.child})
+  /// 已有位移动画的素材不重复叠加；到账时可用弹窗进度播放单轮。
+  const PCPigMotion.hero({super.key, required this.child, this.progress})
     : jumpHeight = 6,
       showShadow = false;
 
   final Widget child;
   final double jumpHeight;
   final bool showShadow;
+  final Animation<double>? progress;
 
   @override
   State<PCPigMotion> createState() => _PCPigMotionState();
@@ -81,7 +83,18 @@ class _PCPigMotionState extends State<PCPigMotion>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final enabled = !MediaQuery.disableAnimationsOf(context);
+    _updateLoop();
+  }
+
+  @override
+  void didUpdateWidget(covariant PCPigMotion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.progress != oldWidget.progress) _updateLoop();
+  }
+
+  void _updateLoop() {
+    final enabled =
+        widget.progress == null && !MediaQuery.disableAnimationsOf(context);
     if (_animationsEnabled == enabled) return;
     _animationsEnabled = enabled;
     if (enabled) {
@@ -99,12 +112,18 @@ class _PCPigMotionState extends State<PCPigMotion>
   }
 
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
+  Widget build(BuildContext context) => _buildMotion(
+    MediaQuery.disableAnimationsOf(context)
+        ? const AlwaysStoppedAnimation(0.0)
+        : widget.progress ?? _controller,
+  );
+
+  Widget _buildMotion(Animation<double> animation) => RepaintBoundary(
     child: AnimatedBuilder(
-      animation: _controller,
+      animation: animation,
       child: widget.child,
       builder: (context, child) {
-        final phase = _controller.value;
+        final phase = animation.value;
         final breath = math.sin(phase * math.pi * 4);
         final sway = math.sin(phase * math.pi * 2);
         final height = _height.transform(phase) * widget.jumpHeight / 24;

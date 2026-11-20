@@ -1,3 +1,4 @@
+import '../../PCTool/PCWithdrawValidation.dart';
 import '../../PCTool/PCAnalytics.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -61,7 +62,10 @@ class _PCQuizRankingDialogState extends State<PCQuizRankingDialog>
         2 + random.nextInt(2),
         _RankingPerson(
           id: 'self',
-          account: _maskAccount(widget.account),
+          account: PCWithdrawValidation.displayAccount(
+            widget.account,
+            fallback: 'Me',
+          ),
           count: count,
           avatar: 'pc_guide_intro_user',
           isSelf: true,
@@ -69,32 +73,8 @@ class _PCQuizRankingDialogState extends State<PCQuizRankingDialog>
       );
   }
 
-  String _randomAccount(math.Random random) {
-    if (random.nextBool()) {
-      final phone =
-          '${1 + random.nextInt(9)}${List.generate(9, (_) => random.nextInt(10)).join()}';
-      return _maskAccount(phone);
-    }
-    const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    final name = List.generate(
-      6 + random.nextInt(7),
-      (_) => alphabet[random.nextInt(alphabet.length)],
-    ).join();
-    return _maskAccount('$name@gmail.com');
-  }
-
-  String _maskAccount(String account) {
-    final value = account.trim();
-    if (value.isEmpty) return 'Me';
-    if (value.contains('*')) return value;
-    if (RegExp(r'^\d{10}$').hasMatch(value)) {
-      return '${value[0]}******${value.substring(7)}';
-    }
-    final parts = value.split('@');
-    final name = parts.first;
-    final prefix = name.substring(0, math.min(2, name.length));
-    return '$prefix${'*' * math.max(3, name.length - prefix.length)}${parts.length > 1 ? '@${parts.last}' : ''}';
-  }
+  String _randomAccount(math.Random random) =>
+      'player${1000 + random.nextInt(9000)}@example.com';
 
   @override
   void didChangeDependencies() {
@@ -386,12 +366,15 @@ class _RankingRow extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Expanded(
-            child: PCText(
-              text: person.account,
-              size: 14,
-              color: Colors.white,
-              weight: FontWeight.w500,
-              maxLines: 1,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: PCText(
+                text: person.account,
+                size: 14,
+                color: Colors.white,
+                weight: FontWeight.w500,
+              ),
             ),
           ),
           const SizedBox(width: 8),

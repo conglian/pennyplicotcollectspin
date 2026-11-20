@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../PCTool/PCReviewPresentationController.dart';
+import '../../PCTool/PCProgressMotion.dart';
 import '../../PCTool/pc_text.dart';
 import 'PCProcessDialogWidgets.dart';
 
@@ -46,9 +47,12 @@ class PCDiamondReminderDialog extends StatelessWidget {
           left: 96,
           width: 112,
           height: 112,
-          child: PCProcessDiamondRing(
-            collected: 20 - left,
-            progress: (20 - left) / 20,
+          child: PCProgressMotion(
+            value: 20 - left,
+            builder: (_, collected, _) => PCProcessDiamondRing(
+              collected: collected,
+              progress: collected / 20,
+            ),
           ),
         ),
         const Positioned(

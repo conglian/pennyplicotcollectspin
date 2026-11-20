@@ -15,14 +15,15 @@ import '../../PCTool/pc_stroke_text.dart';
 import '../../PCTool/pc_text.dart';
 import '../PCOther/PCAdLoadingFailedDialog.dart';
 import '../PCOther/PCDialogTool.dart';
+import 'PCCollectibleAwardDialog.dart';
 export 'PCAwardOpenDialog.dart';
 
-/// 领奖按钮的广告规则；首页新版气泡使用概率插屏，其余业务默认真实激励。
+/// 美元领奖按钮的广告规则；首页普通气泡使用概率插屏。
 enum PCAwardClaimAdPolicy { rewarded, probabilityInterstitial }
 
-/// 奖励领取弹窗（Left To Withdraw / Claim），兼容原来的新用户引导。
-/// [reward] 区分纸钞、钻石、金砖；Claim 按 [claimAdPolicy] 完成后执行 [onClaim]。
-/// 默认 Claim 需要真实激励；新版首页 Claim 无 AD 角标，概率插屏不作为领奖门槛。
+/// 奖励领取弹窗：美元沿用 Left To Withdraw，钻石与金砖使用独立的转盘设计。
+/// 钻石 Collect 领原奖励，Give Up 放弃；金砖激励领双倍，底部 Claim 领原奖励。
+/// 美元沿用各入口的广告规则；钻石和金砖主按钮统一播放激励。
 /// 关闭按配置概率播放插屏；答题和转盘通过 [onAbandon] 先放弃当前待奖。
 /// 激励失败也先清理待奖，再切换同一路由的失败面板。
 class PCAwardDialog extends StatefulWidget {
@@ -32,16 +33,18 @@ class PCAwardDialog extends StatefulWidget {
     this.withdrawalTarget = 100,
     this.reward,
     this.onClaim,
+    this.onDoubleClaim,
     this.onClaimAdFailed,
     this.onAbandon,
     this.balance,
     this.paymentAsset = 'pc_act_0',
-    this.remainingCollectible = 0,
+    this.remainingCollectible,
+    this.collectibleCount,
     this.showAdBadge = true,
     this.adsEnabled = true,
     this.claimAdPolicy = PCAwardClaimAdPolicy.rewarded,
     this.claimAdPlacement = 'rv',
-    this.claimInterstitialAdPlacement = 'int',
+    this.claimInterstitialAdPlacement,
     this.closeAdPlacement = 'int',
     this.analyticsSource,
   });
@@ -55,6 +58,9 @@ class PCAwardDialog extends StatefulWidget {
   final PCQuizReward? reward;
   final Future<bool> Function()? onClaim;
 
+  /// 金砖主按钮激励成功后的双倍入账；用原奖励 ID 结算。
+  final Future<bool> Function()? onDoubleClaim;
+
   /// 兼容旧调用的激励失败清理；先完成持久化，再显示原路由失败面板。
   final Future<void> Function()? onClaimAdFailed;
 
@@ -65,19 +71,27 @@ class PCAwardDialog extends StatefulWidget {
   final double? balance;
   final String paymentAsset;
 
-  /// 保留现有调用兼容；Only文案统一展示美元差额，不展示剩余资源说明。
-  final double remainingCollectible;
+  /// [collectibleCount] 为当前数量，包含超目标的真实进度。
+  /// 仅在没有完整数量时使用 [remainingCollectible] 推算进度。
+  final double? remainingCollectible;
+  final double? collectibleCount;
 
   /// 新用户三题引导设为 false：Claim直接结算，关闭直接退出，均不播放广告。
   final bool adsEnabled;
   final PCAwardClaimAdPolicy claimAdPolicy;
   final String claimAdPlacement;
-  final String claimInterstitialAdPlacement;
+
+  /// 仅在普通 Claim 需要独立广告位时传入，默认复用当前来源的插屏标记。
+  final String? claimInterstitialAdPlacement;
   final String closeAdPlacement;
 
-  /// 激励策略下控制 AD 角标；首页概率插屏策略始终不显示角标。
-  /// 单独隐藏角标不会跳过默认策略所需的激励广告。
+  /// 控制原版弹窗的 AD 角标。转盘样式的钻石和金砖主按钮自带角标。
   final bool showAdBadge;
+
+  /// 转盘原稿钻石和金砖画板的遮罩为 80% 黑色，美元使用默认遮罩。
+  static Color? backdropFor(PCQuizRewardType type) =>
+      type == PCQuizRewardType.cash ? null : const Color(0xCC000000);
+
   @override
   State<PCAwardDialog> createState() => _PCAwardDialogState();
 }
@@ -93,6 +107,10 @@ class _PCAwardDialogState extends State<PCAwardDialog>
   bool _adFailed = false;
   Future<void>? _abandonment;
   bool get _busy => _claiming || _closing;
+  bool get _usesCollectibleActions =>
+      widget.adsEnabled &&
+      widget.reward != null &&
+      widget.reward!.type != PCQuizRewardType.cash;
 
   @override
   void didChangeDependencies() {
@@ -110,18 +128,30 @@ class _PCAwardDialogState extends State<PCAwardDialog>
     super.dispose();
   }
 
-  Future<void> _claim() async {
+  Future<void> _claim({bool singleGold = false}) async {
     if (_busy || _adFailed) return;
     final route = ModalRoute.of(context);
     if (route?.isCurrent != true) return;
     final navigator = Navigator.of(context);
+    final rewarded =
+        widget.adsEnabled &&
+        !singleGold &&
+        (_usesCollectibleActions ||
+            widget.claimAdPolicy == PCAwardClaimAdPolicy.rewarded);
+    final doubleGold =
+        _usesCollectibleActions &&
+        rewarded &&
+        widget.reward?.type == PCQuizRewardType.gold;
     _track('double_pop_c', withSource: true);
     setState(() => _claiming = true);
     try {
-      final outcome = await _completeClaimAd(route);
+      final outcome = await _completeClaimAd(
+        route,
+        rewarded: rewarded,
+        singleGold: singleGold,
+      );
       if (!outcome.isSuccess) {
-        if (widget.adsEnabled &&
-            widget.claimAdPolicy == PCAwardClaimAdPolicy.rewarded) {
+        if (rewarded) {
           // 即使用户已切页或路由退出，也清理原奖励，迟到回调不能让待奖复活。
           try {
             await _abandonReward();
@@ -142,7 +172,11 @@ class _PCAwardDialogState extends State<PCAwardDialog>
         return;
       }
       if (!mounted || route?.isCurrent != true) return;
-      final claimed = await widget.onClaim?.call() ?? true;
+      final settle = doubleGold ? widget.onDoubleClaim : widget.onClaim;
+      if (doubleGold && settle == null) {
+        throw StateError('Missing double claim handler');
+      }
+      final claimed = await settle?.call() ?? true;
       if (claimed) _dismiss(route, navigator, true);
     } catch (_) {
       if (mounted && route?.isCurrent == true) {
@@ -156,9 +190,13 @@ class _PCAwardDialogState extends State<PCAwardDialog>
     }
   }
 
-  Future<PCAdOutcome> _completeClaimAd(Route<dynamic>? route) async {
+  Future<PCAdOutcome> _completeClaimAd(
+    Route<dynamic>? route, {
+    required bool rewarded,
+    required bool singleGold,
+  }) async {
     if (!widget.adsEnabled) return PCAdOutcome.success;
-    if (widget.claimAdPolicy == PCAwardClaimAdPolicy.rewarded) {
+    if (rewarded) {
       return PCRewardedAdService.instance.requestOutcome(
         widget.claimAdPlacement,
       );
@@ -168,10 +206,12 @@ class _PCAwardDialogState extends State<PCAwardDialog>
       await numbers.pc_initNumberModel();
       if (!mounted || route?.isCurrent != true) return PCAdOutcome.cancelled;
       if (numbers.pc_checkProbability()) {
-        // 首页入口已满足领奖条件；插屏失败或未就绪不扣留这笔奖励。
+        // 概率插屏失败或未就绪时仍结算单倍奖励。
         // 等待原生广告完整退出，保持领奖和关闭互斥及本地弹窗串行。
         await PCInterstitialAdService.instance.requestOutcome(
-          widget.claimInterstitialAdPlacement,
+          singleGold
+              ? widget.closeAdPlacement
+              : widget.claimInterstitialAdPlacement ?? widget.closeAdPlacement,
         );
       }
     } catch (error) {
@@ -239,7 +279,7 @@ class _PCAwardDialogState extends State<PCAwardDialog>
   );
 
   Widget _withdrawalSummary(double balance) {
-    // 三阶段共用设计句式，金额按同一份美元余额计算，不使用钻石或金砖数量。
+    // 美元差额以当前现金和首档门槛计算。
     final remaining = math.max(0.0, widget.withdrawalTarget - balance);
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -289,10 +329,22 @@ class _PCAwardDialogState extends State<PCAwardDialog>
   }
 
   Widget _buildDialog(BuildContext context) {
-    final balance = widget.balance ?? PCLocalProvider.instance.pc_dollar_number;
+    final provider = PCLocalProvider.instance;
+    final balance = widget.balance ?? provider.pc_dollar_number;
     final type = widget.reward?.type ?? PCQuizRewardType.cash;
     final collectible = type != PCQuizRewardType.cash;
     final amount = PCQuizReward.format(widget.award);
+    final remainingCollectible = widget.remainingCollectible;
+    final collectibleTarget = type == PCQuizRewardType.diamond
+        ? PCQuizConfig.diamondTarget
+        : PCQuizConfig.goldTarget;
+    final collected =
+        widget.collectibleCount ??
+        (remainingCollectible != null
+            ? math.max(0.0, collectibleTarget - remainingCollectible)
+            : provider.pc_pig_level == type.index
+            ? provider.pc_pig_level_index
+            : 0.0);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -300,6 +352,20 @@ class _PCAwardDialogState extends State<PCAwardDialog>
       },
       child: _adFailed
           ? PCAdLoadingFailedDialog(onClose: () => unawaited(_close()))
+          : _usesCollectibleActions
+          ? PCCollectibleAwardDialog(
+              type: type,
+              amount: widget.award,
+              collected: collected,
+              withdrawalTarget: widget.withdrawalTarget,
+              paymentAsset: widget.paymentAsset,
+              lightRotation: _light,
+              busy: _busy,
+              onRewardedClaim: _claim,
+              onSecondaryAction: type == PCQuizRewardType.gold
+                  ? () => unawaited(_claim(singleGold: true))
+                  : _close,
+            )
           : LayoutBuilder(
               builder: (context, constraints) {
                 final padding = MediaQuery.paddingOf(context);

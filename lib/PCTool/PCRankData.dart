@@ -93,8 +93,7 @@ class PCUserDataManager {
       do {
         id = 1000 + _random.nextInt(9000);
       } while (!usedIds.add(id));
-      final username =
-          'User ****$id (${regions[_random.nextInt(regions.length)]})';
+      final username = 'User $id (${regions[_random.nextInt(regions.length)]})';
       var avatar = avatars[i % avatars.length];
       if (i < previous.length && avatar == previous[i].avatarIndex) {
         avatar = (avatar + 1) % avatarCount;

@@ -87,7 +87,7 @@ void main() {
             ),
           );
           await tester.pump();
-          await tester.pump(const Duration(milliseconds: 200));
+          await tester.pump(const Duration(milliseconds: 950));
           final header = find.byType(PCBalanceHeader);
           expect(header, findsOneWidget);
           if (level == 0) {
@@ -183,6 +183,7 @@ void main() {
             ),
           );
           await tester.pump();
+          await tester.pump(const Duration(milliseconds: 950));
           final header = find.byType(PCBalanceHeader);
           expectCollectibleGeometry(
             tester,
@@ -245,7 +246,10 @@ void main() {
     await prefs.setDouble('pc_quiz_diamonds', 7.75);
     await prefs.setDouble('pc_dollar_number', 25.5);
     await provider.init();
-    await tester.pump(const Duration(milliseconds: 200));
+    // Provider 延后 100ms 通知页面；等进度动画收到新值再推进时钟。
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 950));
     Iterable<num> values() => tester
         .widgetList<PCGradientNumberRoller>(find.byType(PCGradientNumberRoller))
         .map((n) => n.value);

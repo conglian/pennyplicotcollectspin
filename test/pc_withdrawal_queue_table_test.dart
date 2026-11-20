@@ -35,7 +35,7 @@ void main() {
     double scale = 1,
     bool reduced = true,
     List<PCWithdrawalQueueEntry>? rows,
-    String account = 'p***@mail.com',
+    String account = 'player@example.com',
     double? target = 100,
   }) async {
     await tester.pumpWidget(
@@ -80,7 +80,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('p***@mail.com'), findsOneWidget);
+    expect(find.text('player@example.com'), findsOneWidget);
   }
 
   testWidgets('初次打开388人队列直接定位第99名，表头固定且当前用户高亮', (tester) async {
@@ -166,7 +166,7 @@ void main() {
       expect(complete[i].account, rebuilt[i].account);
       expect(complete[i].amount, rebuilt[i].amount);
       expect(PCNumberHelpers().pc_eqRange, contains(complete[i].amount));
-      expect(RegExp(r'^1\*{4}\d{3}$').hasMatch(complete[i].account), isTrue);
+      expect(RegExp(r'^Player \d{3}$').hasMatch(complete[i].account), isTrue);
       if (i < 4) {
         expect(complete[i].account, previous[i].account);
         expect(complete[i].amount, previous[i].amount);
@@ -181,12 +181,12 @@ void main() {
     final rows = pcCashQueueEntries(seed: 17, target: 100, count: 388);
     expect(rows.map((row) => row.amount).toSet(), {90, 110, 130, 170});
     expect(
-      rows.every((row) => RegExp(r'^1\*{4}\d{3}$').hasMatch(row.account)),
+      rows.every((row) => RegExp(r'^Player \d{3}$').hasMatch(row.account)),
       isTrue,
     );
   });
 
-  testWidgets('当前行真实账号自动脱敏，旧4行外的随机行也只显示配置档位和手机号', (tester) async {
+  testWidgets('当前行真实账号以原文显示，其他行使用示例账号和配置档位', (tester) async {
     PCNumberHelpers().intModel = const PCAPCConfig(
       eqRange: [90, 110, 130, 170],
     );
@@ -194,10 +194,9 @@ void main() {
     await mount(tester, rows: entries(), account: raw, target: null);
     final current = find.byKey(const ValueKey('pcWithdrawalQueueCurrentRow'));
     expect(
-      find.descendant(of: current, matching: find.text('cu***om')),
+      find.descendant(of: current, matching: find.text(raw)),
       findsOneWidget,
     );
-    expect(find.text(raw), findsNothing);
     expect(
       find.descendant(of: current, matching: find.text('\$90')),
       findsOneWidget,
@@ -212,7 +211,7 @@ void main() {
           )
           .map((text) => text.text)
           .toList();
-      expect(RegExp(r'^1\*{4}\d{3}$').hasMatch(texts[1]), isTrue);
+      expect(RegExp(r'^Player \d{3}$').hasMatch(texts[1]), isTrue);
       expect([
         90,
         110,
@@ -221,7 +220,10 @@ void main() {
       ], contains(double.parse(texts[2].substring(1))));
     }
     await mount(tester, rows: entries(), account: 'c***.com', target: 90);
-    expect(find.text('c***.com'), findsOneWidget, reason: '已有星号缓存不可重复脱敏');
+    expect(
+      find.descendant(of: current, matching: find.text('—')),
+      findsOneWidget,
+    );
 
     await mount(
       tester,
@@ -254,7 +256,7 @@ void main() {
           )
           .map((text) => text.text)
           .toList();
-      expect(RegExp(r'^1\*{4}\d{3}$').hasMatch(texts[1]), isTrue);
+      expect(RegExp(r'^Player \d{3}$').hasMatch(texts[1]), isTrue);
       expect([
         90,
         110,
@@ -265,13 +267,13 @@ void main() {
     expect(find.text('old@example.com'), findsNothing);
   });
 
-  testWidgets('当前账号显示首尾两位，邮箱中的单个星号不绕过脱敏', (tester) async {
+  testWidgets('当前账号显示完整电话和邮箱，旧掩码无法恢复时只显示占位', (tester) async {
     for (final (raw, masked) in [
-      ('1112345622', '11***22'),
-      ('account*name@example.com', 'ac***om'),
-      ('111***22', '111***22'),
-      ('11***22', '11***22'),
-      ('p***@mail.com', 'p***@mail.com'),
+      ('1112345622', '1112345622'),
+      ('account*name@example.com', 'account*name@example.com'),
+      ('111***22', '—'),
+      ('11***22', '—'),
+      ('p***@mail.com', '—'),
     ]) {
       await mount(tester, rank: 99, rows: entries(), account: raw);
       final current = find.byKey(const ValueKey('pcWithdrawalQueueCurrentRow'));
@@ -279,9 +281,7 @@ void main() {
         find.descendant(of: current, matching: find.text(masked)),
         findsOneWidget,
       );
-      if (!raw.contains('**') && raw.isNotEmpty) {
-        expect(find.text(raw), findsNothing);
-      }
+      if (raw != masked) expect(find.text(raw), findsNothing);
     }
   });
 }

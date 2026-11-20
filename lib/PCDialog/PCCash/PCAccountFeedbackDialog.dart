@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../../PCTool/PCWithdrawValidation.dart';
+
 import '../../PCTool/PCAdaptiveLayout.dart';
 import '../../PCTool/pc_stroke_text.dart';
 import '../../PCTool/pc_text.dart';
 
 /// 收款账户确认反馈弹窗（Official Notice）。
 ///
-/// 以黄色加粗突出脱敏账号 [maskedUserId]，并展示距提现还差的金额 [remainingAmount]；
+/// 以黄色加粗突出收款账号 [account]，并展示距提现还差的金额 [remainingAmount]；
 /// 点击 Continue 后先关闭弹窗，再执行 [onContinue]。
 class PCAccountFeedbackDialog extends StatelessWidget {
-  final String maskedUserId;
+  final String account;
   final double remainingAmount;
   final VoidCallback? onContinue;
 
   const PCAccountFeedbackDialog({
     super.key,
-    this.maskedUserId = '1***2334',
+    this.account = '',
     this.remainingAmount = 4,
     this.onContinue,
   });
@@ -118,7 +120,9 @@ class PCAccountFeedbackDialog extends StatelessWidget {
                             maxLines: 3,
                             spans: [
                               TextSpan(
-                                text: maskedUserId,
+                                text: PCWithdrawValidation.displayAccount(
+                                  account,
+                                ),
                                 style: TextStyle(
                                   color: const Color(0xFFFFAF00),
                                   fontSize: s(18),

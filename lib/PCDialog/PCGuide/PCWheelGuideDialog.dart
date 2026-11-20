@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 
 import '../../PCBasic/PCTbaBar.dart';
 import '../../PCTool/PCAdaptiveLayout.dart';
@@ -143,16 +142,7 @@ class _PCWheelGuideDialogState extends State<PCWheelGuideDialog> {
               child: PCNavBarItemView(
                 key: const ValueKey('pcWheelGuideTarget'),
                 isSelected: PigsTabController.currentIndex.value == 2,
-                item: PersistentBottomNavBarItem(
-                  icon: const PCImg(name: 'pc_wheel_n', fit: BoxFit.scaleDown),
-                  inactiveIcon: const PCImg(
-                    name: 'pc_wheel_s',
-                    fit: BoxFit.scaleDown,
-                  ),
-                  title: 'Wheel',
-                  activeColorPrimary: Colors.transparent,
-                  inactiveColorPrimary: Colors.transparent,
-                ),
+                item: pcNavBarItem('pc_wheel', 'Wheel'),
               ),
             ),
           ),

@@ -80,7 +80,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
-    testWidgets('资料表单$width宽四渠道可选，默认PayPal，返回而不保存', (tester) async {
+    testWidgets('资料表单$width宽仅两个渠道，标签不切换，返回而不保存', (tester) async {
       tester.view.physicalSize = Size(width, 700);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -91,13 +91,15 @@ void main() {
         const PCProcessAccountDialog(initialPaymentIndex: 2),
         (value) => result = value,
       );
-      for (final name in ['PayPal', 'Cash App', 'PiX', 'PagBank']) {
+      for (final name in ['PayPal', 'Cash App']) {
         expect(find.text(name), findsOneWidget);
       }
-      expect(find.text('Email:'), findsOneWidget);
+      expect(find.text('PiX'), findsNothing);
+      expect(find.text('PagBank'), findsNothing);
+      expect(find.text('Email/Phone Number'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pcProcessMethod1')));
       await tester.pumpAndSettle();
-      expect(find.text('Phone Number:'), findsOneWidget);
+      expect(find.text('Email/Phone Number'), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('pcProcessAccountInput')),
         '1234567890',
@@ -171,7 +173,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('已有脱敏资料只显示原渠道，未经修改可直接确认，关闭不返回资料', (tester) async {
+  testWidgets('已取消的渠道和旧脱敏账号不预填，可以重新绑定受支持渠道', (tester) async {
     Object? result;
     await show(
       tester,
@@ -182,45 +184,40 @@ void main() {
       ),
       (value) => result = value,
     );
-    expect(find.text('PiX'), findsOneWidget);
-    for (final name in ['PayPal', 'Cash App', 'PagBank']) {
-      expect(find.text(name), findsNothing);
-    }
-    expect(find.text('a***7890'), findsOneWidget);
+    expect(find.text('PiX'), findsNothing);
+    expect(find.text('PagBank'), findsNothing);
+    expect(find.text('PayPal'), findsOneWidget);
+    expect(find.text('Cash App'), findsOneWidget);
+    final field = find.byKey(const ValueKey('pcProcessAccountInput'));
+    expect(tester.widget<TextField>(field).controller?.text, isEmpty);
+    await tester.enterText(field, 'player@example.com');
     await tester.tap(find.byKey(const ValueKey('pcProcessAccountApply')));
     await tester.pumpAndSettle();
-    expect((result as PCWithdrawDetails).method, PCWithdrawMethod.pix);
-    expect((result as PCWithdrawDetails).account, 'a***7890');
-    await tester.tap(find.text('Open'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('pcProcessAccountClose')));
-    await tester.pumpAndSettle();
-    expect(result, isNull);
+    expect((result as PCWithdrawDetails).method, PCWithdrawMethod.paypal);
+    expect((result as PCWithdrawDetails).account, 'player@example.com');
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  for (final pair in [
-    (1, PCWithdrawMethod.pix, 'PiX'),
-    (2, PCWithdrawMethod.cashApp, 'Cash App'),
-  ]) {
-    testWidgets('缓存渠道${pair.$1}正确回填${pair.$3}', (tester) async {
-      Object? result;
-      await show(
-        tester,
-        PCProcessAccountDialog(
-          initialAccount: 'a***7890',
-          initialPaymentIndex: pair.$1,
-          hasSavedAccount: true,
-        ),
-        (value) => result = value,
-      );
-      expect(find.text(pair.$3), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('pcProcessAccountApply')));
-      await tester.pumpAndSettle();
-      expect((result as PCWithdrawDetails).method, pair.$2);
-      await tester.pumpWidget(const SizedBox.shrink());
-    });
-  }
+  testWidgets('Cash App 绑定账号原样回填，可确认且不重新脱敏', (tester) async {
+    Object? result;
+    await show(
+      tester,
+      const PCProcessAccountDialog(
+        initialAccount: '2025550123',
+        initialPaymentIndex: 2,
+        hasSavedAccount: true,
+      ),
+      (value) => result = value,
+    );
+    final field = find.byKey(const ValueKey('pcProcessAccountInput'));
+    expect(tester.widget<TextField>(field).controller?.text, '2025550123');
+    expect(tester.widget<TextField>(field).keyboardType, TextInputType.phone);
+    await tester.tap(find.byKey(const ValueKey('pcProcessAccountApply')));
+    await tester.pumpAndSettle();
+    expect((result as PCWithdrawDetails).method, PCWithdrawMethod.cashApp);
+    expect((result as PCWithdrawDetails).account, '2025550123');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   for (final width in [320.0, 430.0]) {
     testWidgets('账号确认横幅$width宽从屏外平移、中心完整停2秒、原路退场只pop一次', (tester) async {

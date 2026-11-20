@@ -3,7 +3,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_tba_info/flutter_tba_info.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'PCLogger.dart';
+
+const _installLogIdKey = 'pc_tba_install_log_id_v1';
 
 Future<void> pc_session_fire() => _pcSafeReport(() async {
   asLog.info('[session] collecting TBA metadata');
@@ -32,10 +35,19 @@ Future<void> pc_event_fire(String name, Map<String, dynamic> body) =>
       await PCRequestHelpers().post(baseBodys, 0);
     });
 
-Future<void> pc_install_fire() => _pcSafeReport(() async {
-  var baseBody = await PCRequestHelpers().baseBody();
-  var map = await FlutterTbaInfo.instance.getReferrerMap();
-  Map<String, dynamic> vikram = {
+Future<bool> pc_install_fire() async {
+  final prefs = await SharedPreferences.getInstance();
+  var logId = prefs.getString(_installLogIdKey);
+  if (logId == null) {
+    logId = await FlutterTbaInfo.instance.getLogId();
+    // 同一笔安装跨冷启动重试时沿用协议中的日志 ID。
+    if (!await prefs.setString(_installLogIdKey, logId)) return false;
+  }
+
+  final request = PCRequestHelpers();
+  final baseBody = await request.baseBody(logId: logId);
+  final map = await FlutterTbaInfo.instance.getReferrerMap();
+  baseBody["vikram"] = {
     "alumni": map['build'],
     'lumen': map['referrer_url'],
     "chili": map['install_version'],
@@ -48,9 +60,8 @@ Future<void> pc_install_fire() => _pcSafeReport(() async {
     "pecos": map['install_first_seconds'],
     "upright": map['last_update_seconds'],
   };
-  baseBody["vikram"] = vikram;
-  await PCRequestHelpers().post(baseBody, 1);
-});
+  return await request.post(baseBody, 1) != null;
+}
 
 Future<void> _pcSafeReport(
   Future<void> Function() report, {
@@ -105,7 +116,7 @@ class PCRequestHelpers {
     }
   }
 
-  Future<dynamic> post(dynamic data, int type) async {
+  Future<String?> post(dynamic data, int type) async {
     var eventName = "";
     if (type == 0) {
       eventName = "event";
@@ -117,26 +128,30 @@ class PCRequestHelpers {
       eventName = "ad";
     }
     var url = Uri.parse(tba_event_Url);
-    asLog.info("upload event [${eventName}] url ${url} \n ${data}");
+    asLog.info("upload event [$eventName] url $url \n $data");
+    final client = http.Client();
     try {
-      var response = await http.post(
+      final request = client.post(
         url,
         headers: eventHeader,
         body: jsonEncode(data),
       );
-      asLog.success("upload event [${eventName}] success ${response.body}");
-      // "upload event [${eventName}] success ${response.body}".log();
-      return _handleResponse(response);
+      final response = type == 1
+          ? await request.timeout(const Duration(seconds: 15))
+          : await request;
+      final body = _handleResponse(response);
+      asLog.success("upload event [$eventName] success $body");
+      return body;
     } catch (e) {
-      // Debug 环境测试域名不可解析时回退正式地址，避免埋点因 DNS 问题完全丢失。
+      // 安装留到下次 cloak 成功时重试，其它事件继续使用原有的地址回退。
       final isDnsFailure =
           e is SocketException ||
           e.toString().contains('Failed host lookup') ||
           e.toString().contains('Network is unreachable');
-      if (isDnsFailure && tba_event_Url != tba_event_Url_release) {
+      if (type != 1 && isDnsFailure && tba_event_Url != tba_event_Url_release) {
         final fallbackUrl = Uri.parse(tba_event_Url_release);
         asLog.error(
-          "upload event [${eventName}] test endpoint unavailable, retry release url ${fallbackUrl}",
+          "upload event [$eventName] test endpoint unavailable, retry release url $fallbackUrl",
         );
         try {
           final response = await http.post(
@@ -144,22 +159,26 @@ class PCRequestHelpers {
             headers: eventHeader,
             body: jsonEncode(data),
           );
+          final body = _handleResponse(response);
           asLog.success(
-            "upload event [${eventName}] release fallback success ${response.body}",
+            "upload event [$eventName] release fallback success $body",
           );
-          return _handleResponse(response);
+          return body;
         } catch (fallbackError) {
           asLog.error(
-            "upload event [${eventName}] release fallback failed $fallbackError",
+            "upload event [$eventName] release fallback failed $fallbackError",
           );
         }
       } else {
-        asLog.error("upload event [${eventName}] faild error $e");
+        asLog.error("upload event [$eventName] failed error $e");
       }
+      return null;
+    } finally {
+      client.close();
     }
   }
 
-  dynamic _handleResponse(http.Response response) {
+  String _handleResponse(http.Response response) {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return response.body;
     } else {
@@ -189,7 +208,7 @@ extension RequestHelpersExtension on PCRequestHelpers {
   }
 
   // 通用字段
-  Future<Map<String, dynamic>> baseBody() async {
+  Future<Map<String, dynamic>> baseBody({String? logId}) async {
     Map<String, dynamic> baseBody = {};
 
     Map<String, dynamic> woodruff = {
@@ -208,7 +227,7 @@ extension RequestHelpersExtension on PCRequestHelpers {
 
     Map<String, dynamic> align = {
       'pasteup': await FlutterTbaInfo.instance.getAppVersion(),
-      "reticent": await FlutterTbaInfo.instance.getLogId(),
+      "reticent": logId ?? await FlutterTbaInfo.instance.getLogId(),
       "within": await FlutterTbaInfo.instance.getManufacturer(),
       'stealthy': await FlutterTbaInfo.instance.getBrand(),
       'erotica': await FlutterTbaInfo.instance.getOperator(),

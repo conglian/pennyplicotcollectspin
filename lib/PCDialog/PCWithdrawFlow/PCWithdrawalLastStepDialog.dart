@@ -159,6 +159,8 @@ class _PCWithdrawalLastStepDialogState
               key: const ValueKey('pcWithdrawalTaskProgress'),
               progress: widget.target > 0 ? _progress / widget.target : 0,
               label: '$_progress/${widget.target}',
+              labelAt: (value) =>
+                  '${(value * widget.target).round()}/${widget.target}',
             ),
           ),
           Positioned(

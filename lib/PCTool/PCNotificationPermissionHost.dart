@@ -15,8 +15,8 @@ import 'PCWithdrawalController.dart';
 import 'PCWithdrawalNotifications.dart';
 import 'pc_extension_help.dart';
 
-/// 通知二次召回：每次冷启动未授权时展示一次，引导与提现等已有流程优先。
-/// 回前台重新查询系统权限；设置中开启后关闭自己的引导，并恢复原有通知推送计划。
+/// 通知权限引导：每次冷启动未授权时展示一次，引导与提现等已有流程优先。
+/// 用户点主按钮后才请求系统权限；拒绝后按系统状态打开设置，并在回前台恢复通知计划。
 class PCNotificationPermissionHost extends StatefulWidget {
   const PCNotificationPermissionHost({
     super.key,
@@ -208,10 +208,14 @@ class _PCNotificationPermissionHostState
     if (_openingSettings) return;
     _openingSettings = true;
     try {
-      await (widget.openSettings ??
-          () => AppSettings.openAppSettings(
-            type: AppSettingsType.notification,
-          ))();
+      final openSettings = await PCNoticeHelp.instance
+          .requestPermissionFromGuide();
+      if (openSettings) {
+        await (widget.openSettings ??
+            () => AppSettings.openAppSettings(
+              type: AppSettingsType.notification,
+            ))();
+      }
       if (mounted) await _checkPermission();
     } catch (_) {
       // 系统设置暂不可用时保留可关闭的引导，不阻断页面。

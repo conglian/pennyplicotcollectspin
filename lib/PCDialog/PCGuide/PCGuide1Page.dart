@@ -1,3 +1,4 @@
+import '../../PCTool/PCProgressMotion.dart';
 import 'package:flutter/material.dart';
 
 import '../../PCTool/pc_GradientNumber.dart';
@@ -202,15 +203,19 @@ class _BalanceCard extends StatelessWidget {
                       padding: const EdgeInsets.all(2),
                       child: Align(
                         alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: progress,
-                          heightFactor: 1,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFDD1E),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
+                        child: PCProgressMotion(
+                          value: progress,
+                          builder: (_, animatedProgress, _) =>
+                              FractionallySizedBox(
+                                widthFactor: animatedProgress,
+                                heightFactor: 1,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFDD1E),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
                         ),
                       ),
                     ),

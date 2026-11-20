@@ -10,6 +10,7 @@ import 'PCPigProgress.dart';
 import 'PCQuizConfig.dart';
 import 'PCRewardedAdService.dart';
 import 'PCWithdrawValidation.dart';
+import 'PCWithdrawMethod.dart';
 
 /// Figma「引导页1–3」的说明页进度，兼容已经保存的 v1 数据。
 enum PCNewUserGuideStep { guide1, guide2, guide3, afterIntro }
@@ -93,7 +94,17 @@ class PCNewUserGuideController extends ChangeNotifier {
   double get pendingPrize => (_flow['pendingPrize'] as num?)?.toDouble() ?? 0;
   double get firstCommission =>
       (_flow['firstCommission'] as num?)?.toDouble() ?? config.firstAdPrize;
-  String get confirmedUser => _flow['confirmedUser'] as String? ?? '';
+  String get confirmedUser {
+    final saved = PCWithdrawValidation.fullAccount(
+      _preferences?.getString('pc_account_id') ?? '',
+    );
+    return saved.isNotEmpty
+        ? saved
+        : PCWithdrawValidation.fullAccount(
+            _flow['confirmedUser'] as String? ?? '',
+          );
+  }
+
   double get balance => _preferences?.getDouble(balanceKey) ?? 0;
   int get checkInDay => (_flow['checkInDay'] as int? ?? 0).clamp(0, 7);
   bool get canCheckIn =>
@@ -340,15 +351,19 @@ class PCNewUserGuideController extends ChangeNotifier {
     return claimed;
   }
 
-  /// 有效提交即保存公共脱敏账号、渠道及引导进度；原始资料不写入本地。
-  Future<void> confirmPayment(String maskedUser, {int? paymentIndex}) async {
+  /// 有效提交即保存本机的完整收款账号与渠道；引导进度只记录确认状态。
+  Future<void> confirmPayment(String rawAccount, {int? paymentIndex}) async {
     await load();
-    final user = maskedUser.trim();
-    if (_saving || stage != PCNewUserStage.payment || user.isEmpty) return;
-    if (paymentIndex != null && (paymentIndex < 0 || paymentIndex > 3)) {
-      throw RangeError.range(paymentIndex, 0, 3, 'paymentIndex');
+    final account = PCWithdrawValidation.fullAccount(rawAccount);
+    if (_saving || stage != PCNewUserStage.payment || account.isEmpty) return;
+    if (paymentIndex != null &&
+        PCWithdrawMethod.fromStorageIndex(paymentIndex) == null) {
+      throw ArgumentError.value(
+        paymentIndex,
+        'paymentIndex',
+        'Unsupported method',
+      );
     }
-    final account = user.contains('*') ? user : PCWithdrawValidation.mask(user);
     await _save(() async {
       if (paymentIndex != null &&
           !await _preferences!.setInt('pc_account_seled_index', paymentIndex)) {
@@ -359,7 +374,8 @@ class PCNewUserGuideController extends ChangeNotifier {
       }
       await _writeFlow({
         ..._flow,
-        'confirmedUser': account,
+        'accountConfirmed': true,
+        'confirmedUser': null,
         'stage': PCNewUserStage.officialNotice.name,
       });
     });

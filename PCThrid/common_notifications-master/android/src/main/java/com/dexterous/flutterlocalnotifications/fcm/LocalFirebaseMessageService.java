@@ -2,6 +2,7 @@ package com.dexterous.flutterlocalnotifications.fcm;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -25,6 +26,15 @@ public class LocalFirebaseMessageService extends FirebaseMessagingService {
     private static final String TAG = "PCFirebaseNotifications";
 
     @Override
+    public void handleIntent(Intent intent) {
+        // Firebase displays background notification messages inside this call and only
+        // invokes onMessageReceived for messages the app must render itself.
+        FirebaseSystemNotification systemNotification = FirebaseSystemNotification.watch(this, intent);
+        super.handleIntent(intent);
+        if (systemNotification != null) systemNotification.showCompanion();
+    }
+
+    @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
         super.onMessageReceived(remoteMessage);
         try {
@@ -40,20 +50,27 @@ public class LocalFirebaseMessageService extends FirebaseMessagingService {
 
     @Nullable
     static NotificationDetails buildNotificationDetails(Context context, RemoteMessage remoteMessage) {
+        return buildNotificationDetails(context, remoteMessage, false);
+    }
+
+    @Nullable
+    static NotificationDetails buildNotificationDetails(Context context, RemoteMessage remoteMessage,
+                                                        boolean systemHandlesCopy) {
         final Map<String, String> data = remoteMessage.getData();
+        RemoteMessage.Notification notification = remoteMessage.getNotification();
         String from = remoteMessage.getFrom();
         String topic = FlutterFCMPlugin.normalizeTopic(from != null && from.startsWith("/topics/") ? from : data.get("topic"));
-        String selector = firstValue(data.get("payload"), data.get("channelId"));
+        String selector = firstValue(data.get("payload"), data.get("channelId"),
+                notification == null ? null : notification.getChannelId());
         NotificationDetails details = FlutterFCMPlugin.extractNotificationDetails(context, topic, selector);
         if (details == null) {
             Log.w(TAG, "No configured FCM channel matched the received message");
             return null;
         }
-        RemoteMessage.Notification notification = remoteMessage.getNotification();
         // FCM copy belongs to the server; never substitute a local motivation message.
         details.title = firstValue(data.get("title"), notification == null ? null : notification.getTitle());
         details.body = firstValue(data.get("body"), notification == null ? null : notification.getBody());
-        if (TextUtils.isEmpty(details.title) && TextUtils.isEmpty(details.body)) return null;
+        if (!systemHandlesCopy && TextUtils.isEmpty(details.title) && TextUtils.isEmpty(details.body)) return null;
         if (TextUtils.isEmpty(details.payload)) details.payload = firstValue(selector, "fcm");
         String id = data.get("id");
         try {

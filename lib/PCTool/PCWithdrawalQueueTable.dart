@@ -27,7 +27,7 @@ class PCWithdrawalQueueTable extends StatefulWidget {
   final double scale;
   final Color amountColor;
 
-  /// 本地收款账号：兼容已脱敏缓存，完整输入展示前再次脱敏。
+  /// 当前用户的完整收款账号；旧脱敏存档没有原文时显示占位。
   final String? currentAccount;
   final double? currentAmount;
 
@@ -93,7 +93,7 @@ class _PCWithdrawalQueueTableState extends State<PCWithdrawalQueueTable> {
   PCWithdrawalQueueEntry _entry(int index) {
     final rank = index + 1;
     final amounts = PCNumberHelpers().pc_eqRange;
-    final fallbackAccount = '1****${100 + (rank * 137 % 900)}';
+    final fallbackAccount = 'Player ${100 + (rank * 137 % 900)}';
     final fallbackAmount = amounts[(rank * 7) % amounts.length].toDouble();
     final original = index < widget.entries.length
         ? widget.entries[index]
@@ -105,7 +105,7 @@ class _PCWithdrawalQueueTableState extends State<PCWithdrawalQueueTable> {
     if (rank != _rank) {
       return PCWithdrawalQueueEntry(
         userId: original.userId,
-        account: RegExp(r'^1\*{4}\d{3}$').hasMatch(original.account)
+        account: RegExp(r'^Player \d{3}$').hasMatch(original.account)
             ? original.account
             : fallbackAccount,
         amount: amounts.contains(original.amount)
@@ -113,12 +113,9 @@ class _PCWithdrawalQueueTableState extends State<PCWithdrawalQueueTable> {
             : fallbackAmount,
       );
     }
-    final account = widget.currentAccount?.trim().isNotEmpty == true
-        ? widget.currentAccount!.trim()
-        : original.account;
     return PCWithdrawalQueueEntry(
       userId: '$rank'.padLeft(3, '0'),
-      account: PCWithdrawValidation.maskQueueAccount(account),
+      account: PCWithdrawValidation.displayAccount(widget.currentAccount ?? ''),
       amount: widget.currentAmount ?? PCNumberHelpers().pc_firstTarget,
     );
   }
@@ -194,21 +191,25 @@ class _PCWithdrawalQueueTableState extends State<PCWithdrawalQueueTable> {
       children: [
         for (var column = 0; column < 3; column++)
           Expanded(
+            flex: column == 1 ? 2 : 1,
             child: Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4 * widget.scale),
-                child: PCText(
-                  text: cells[column],
-                  size: 12 * widget.scale,
-                  color: !header && column == 2
-                      ? widget.amountColor
-                      : const Color(0xFF393939),
-                  weight: current
-                      ? FontWeight.w700
-                      : header || column == 2
-                      ? FontWeight.w500
-                      : FontWeight.w400,
-                  align: TextAlign.center,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: PCText(
+                    text: cells[column],
+                    size: 12 * widget.scale,
+                    color: !header && column == 2
+                        ? widget.amountColor
+                        : const Color(0xFF393939),
+                    weight: current
+                        ? FontWeight.w700
+                        : header || column == 2
+                        ? FontWeight.w500
+                        : FontWeight.w400,
+                    align: TextAlign.center,
+                  ),
                 ),
               ),
             ),

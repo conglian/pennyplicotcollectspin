@@ -143,6 +143,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Only ×2.45 diamonds left'), findsOneWidget);
       expect(find.text('Collect ×2.45 Diamonds'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 950));
       expect(find.text('17.55/20'), findsOneWidget);
       await tester.tap(
         find.byKey(ValueKey(proceed ? 'pcProcessContinue' : 'pcProcessClose')),
@@ -189,6 +190,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     final self = find.byKey(const ValueKey('pcQuizRankRow_self'));
+    expect(
+      find.descendant(of: self, matching: find.text('myaccount@example.com')),
+      findsOneWidget,
+    );
     final before = tester.getTopLeft(self).dy;
     final otherRows = List.generate(
       3,

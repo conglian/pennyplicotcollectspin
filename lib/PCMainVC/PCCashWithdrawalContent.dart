@@ -1,3 +1,5 @@
+import '../PCTool/PCProgressMotion.dart';
+import '../PCTool/PCWithdrawValidation.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -31,7 +33,7 @@ List<PCCashQueueEntry> pcCashQueueEntries({
     math.max(0, count),
     (i) => PCCashQueueEntry(
       '${i + 1}'.padLeft(3, '0'),
-      '1****${100 + random.nextInt(900)}',
+      'Player ${100 + random.nextInt(900)}',
       amounts[random.nextInt(amounts.length)].toDouble(),
     ),
   );
@@ -290,7 +292,20 @@ class PCCashWithdrawalContent extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
               ),
-              row('Account:', text(account.isEmpty ? 'Not set' : account, 14)),
+              row(
+                'Account:',
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: text(
+                    PCWithdrawValidation.displayAccount(
+                      account,
+                      fallback: 'Not set',
+                    ),
+                    14,
+                  ),
+                ),
+              ),
               row('Date:', text('${date.month}/${date.day}/${date.year}', 14)),
             ],
           ),
@@ -577,68 +592,72 @@ class PCCashProgress extends StatelessWidget {
   final bool diamond, gold, highlightCount;
   @override
   Widget build(BuildContext context) {
-    final progress = value.isFinite ? value.clamp(0.0, 1.0) : 0.0;
+    final target = value.isFinite ? value.clamp(0.0, 1.0) : 0.0;
     return SizedBox(
       height: 24 * scale,
       child: Row(
         children: [
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final trackWidth = constraints.maxWidth;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Container(
-                      height: 16 * scale,
-                      decoration: BoxDecoration(
-                        color: gold
-                            ? const Color(0xFFD9C386)
-                            : const Color(0xFFE4E4E4),
-                        borderRadius: BorderRadius.circular(8 * scale),
+            child: PCProgressMotion(
+              value: target,
+              builder: (_, progress, _) => LayoutBuilder(
+                builder: (context, constraints) {
+                  final trackWidth = constraints.maxWidth;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Container(
+                        height: 16 * scale,
+                        decoration: BoxDecoration(
+                          color: gold
+                              ? const Color(0xFFD9C386)
+                              : const Color(0xFFE4E4E4),
+                          borderRadius: BorderRadius.circular(8 * scale),
+                        ),
                       ),
-                    ),
-                    if (progress > 0)
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 2 * scale),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6 * scale),
-                          child: SizedBox(
-                            width:
-                                math.max(0, trackWidth - 4 * scale) * progress,
-                            height: 12 * scale,
-                            child: diamond
-                                ? const DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Color(0xFF2EEFFC),
-                                          Color(0xFF1162F9),
-                                        ],
+                      if (progress > 0)
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2 * scale),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(6 * scale),
+                            child: SizedBox(
+                              width:
+                                  math.max(0, trackWidth - 4 * scale) *
+                                  progress,
+                              height: 12 * scale,
+                              child: diamond
+                                  ? const DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Color(0xFF2EEFFC),
+                                            Color(0xFF1162F9),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  )
-                                : const PCImg(name: 'pc_cash_progress_fill'),
+                                    )
+                                  : const PCImg(name: 'pc_cash_progress_fill'),
+                            ),
                           ),
                         ),
-                      ),
-                    if (diamond)
-                      Positioned(
-                        left: (trackWidth * progress - 12 * scale).clamp(
-                          0.0,
-                          math.max(0.0, trackWidth - 24 * scale),
+                      if (diamond)
+                        Positioned(
+                          left: (trackWidth * progress - 12 * scale).clamp(
+                            0.0,
+                            math.max(0.0, trackWidth - 24 * scale),
+                          ),
+                          child: PCImg(
+                            name: 'pc_stage_progress_diamond',
+                            size: 24 * scale,
+                          ),
                         ),
-                        child: PCImg(
-                          name: 'pc_stage_progress_diamond',
-                          size: 24 * scale,
-                        ),
-                      ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
           SizedBox(width: 8 * scale),

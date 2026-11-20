@@ -1,4 +1,6 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:pennypilotcollectspin/PCMainVC/PCHome.dart';
 import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
@@ -18,6 +20,23 @@ import '../PCTool/pc_stroke_text.dart';
 /// 底部 Wheel 按钮的实际布局锚点，供引导高亮复用。
 final GlobalKey pcWheelNavigationTargetKey = GlobalKey(
   debugLabel: 'pcWheelNavigationTarget',
+);
+
+/// 底部导航和转盘引导全程使用同一张高清图，避免切换时换图跳变。
+PersistentBottomNavBarItem pcNavBarItem(
+  String asset,
+  String title, {
+  double unselectedMaxSize = 44,
+}) => PersistentBottomNavBarItem(
+  icon: Image.asset(
+    '${asset}_selected_hd'.image(),
+    fit: BoxFit.contain,
+    filterQuality: FilterQuality.high,
+  ),
+  iconSize: unselectedMaxSize,
+  title: title,
+  activeColorPrimary: Colors.transparent,
+  inactiveColorPrimary: Colors.transparent,
 );
 
 class PigsTabController {
@@ -98,77 +117,13 @@ class _PigsBottomExampleState extends State<PigsBottomExample> {
         builder: (_, index, __) {
           return CustomNavBarWidget(
             [
-              PersistentBottomNavBarItem(
-                icon: Image.asset('pc_earn_n'.image()),
-                inactiveIcon: Image.asset('pc_earn_s'.image()),
-                title: 'Earn',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-              PersistentBottomNavBarItem(
-                icon: Image.asset('pc_quiz_n'.image()),
-                inactiveIcon: Image.asset('pc_quiz_s'.image()),
-                title: 'Quiz',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-              PersistentBottomNavBarItem(
-                icon: Image.asset('pc_wheel_n'.image()),
-                inactiveIcon: Image.asset('pc_wheel_s'.image()),
-                title: 'Wheel',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-              PersistentBottomNavBarItem(
-                icon: Image.asset('pc_cash_n'.image()),
-                inactiveIcon: Image.asset('pc_cash_s'.image()),
-                title: 'Cash',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
+              pcNavBarItem('pc_earn', 'Earn'),
+              pcNavBarItem('pc_quiz', 'Quiz', unselectedMaxSize: 83),
+              pcNavBarItem('pc_wheel', 'Wheel'),
+              pcNavBarItem('pc_cash', 'Cash'),
             ],
             selectedIndex: index,
-
-            /// ✅ 不再 setState
-            onItemSelected: (i) {
-              if (i == 1) {
-                // cs_event_fire('wheel_c', {'source_from' : 'home'});
-              } else if (i == 2) {
-                // cs_event_fire('cash_page', {'page_from' : 'tab'});
-              }
-              PigsTabController.switchTo(i);
-            },
-          );
-          return CustomNavBarWidget(
-            [
-              PersistentBottomNavBarItem(
-                icon: Image.asset('ps_home_icon'.image()),
-                inactiveIcon: Image.asset('ps_home_icon'.image()),
-                title: 'Piggy',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-              PersistentBottomNavBarItem(
-                icon: Image.asset('ps_quiz_icon'.image()),
-                inactiveIcon: Image.asset('ps_quiz_icon'.image()),
-                title: 'Quiz',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-              PersistentBottomNavBarItem(
-                icon: Image.asset('ps_wheel_icon'.image()),
-                inactiveIcon: Image.asset('ps_wheel_icon'.image()),
-                title: 'Wheel',
-                activeColorPrimary: Colors.transparent,
-                inactiveColorPrimary: Colors.transparent,
-              ),
-            ],
-            selectedIndex: index,
-
-            /// ✅ 不再 setState
-            onItemSelected: (i) {
-              PigsTabController.switchTo(i);
-            },
+            onItemSelected: PigsTabController.switchTo,
           );
         },
       ),
@@ -248,46 +203,52 @@ class PCNavBarItemView extends StatelessWidget {
     final scale = PCAdaptiveLayout.navigationScale(
       MediaQuery.sizeOf(context).width,
     );
+    final idleSize = math.min(50 * scale, item.iconSize);
     return SizedBox(
       height: 81 * scale,
-      child: Stack(
-        clipBehavior: Clip.none, // 👈 关键
-        alignment: Alignment.center,
-        children: [
-          /// 图标
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOut,
-            top: (isSelected ? -8 : 14) * scale, // 👈 关键点
-            child: AnimatedScale(
-              scale: isSelected ? 1.25 : 1.0,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.elasticOut,
-              child: SizedBox(
-                width: 50 * scale * (isSelected ? 1.25 : 1.0),
-                height: 50 * scale * (isSelected ? 1.25 : 1.0),
-                child: isSelected ? item.inactiveIcon : item.icon,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: isSelected ? 1.0 : 0.0),
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 300),
+        curve: Curves.easeInOutCubic,
+        child: isSelected ? item.inactiveIcon ?? item.icon : item.icon,
+        builder: (context, progress, icon) {
+          // 沿用选中态的最终尺寸和中心点。点击切换时三项视觉变化共用进度。
+          final iconSize = lerpDouble(idleSize, 78.125 * scale, progress)!;
+          final iconCenter = lerpDouble(39, 23.25, progress)! * scale;
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Positioned(
+                top: iconCenter - iconSize / 2,
+                width: iconSize,
+                height: iconSize,
+                child: icon!,
               ),
-            ),
-          ),
-
-          /// 文字
-          Positioned(
-            bottom: 14 * scale,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: isSelected ? 1 : 1,
-              child: PCStrokeText(
-                text: item.title ?? '',
-                size: 14 * scale,
-                color: isSelected ? '#FFEB36'.color() : '#4FC931'.color(),
-                weight: FontWeight.w700,
-                skWidth: 2 * scale,
-                skColor: isSelected ? '#000000'.color() : '#062600'.color(),
+              Positioned(
+                bottom: 14 * scale,
+                child: PCStrokeText(
+                  text: item.title ?? '',
+                  size: 14 * scale,
+                  color: Color.lerp(
+                    const Color(0xFF4FC931),
+                    const Color(0xFFFFEB36),
+                    progress,
+                  )!,
+                  weight: FontWeight.w700,
+                  skWidth: 2 * scale,
+                  skColor: Color.lerp(
+                    const Color(0xFF062600),
+                    Colors.black,
+                    progress,
+                  )!,
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -1,3 +1,5 @@
+import '../PCTool/PCWithdrawMethod.dart';
+import '../PCTool/PCProgressMotion.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,7 +16,6 @@ import '../PCTool/PCNumberManager.dart';
 import '../PCTool/PCQuizConfig.dart';
 import '../PCTool/PCWithdrawalController.dart';
 import '../PCTool/PCWithdrawalNotifications.dart';
-import '../PCTool/PCWithdrawValidation.dart';
 import '../PCTool/pc_LocalProvider.dart';
 import '../PCTool/pc_GradientNumber.dart';
 import '../PCTool/pc_extension_help.dart';
@@ -47,13 +48,7 @@ class PCCash extends StatefulWidget {
 }
 
 class PCCashState extends State<PCCash> with WidgetsBindingObserver {
-  // 与渠道缓存索引一致：PayPal蓝、PiX青、Cash App绿、PagBank黄。
-  static const _channelColors = [
-    Color(0xFF0070BA),
-    Color(0xFF18B8AE),
-    Color(0xFF00C244),
-    Color(0xFFFFD43B),
-  ];
+  static const _channelColors = {0: Color(0xFF0070BA), 2: Color(0xFF00C244)};
   late PCWithdrawalController _controller;
   final _provider = PCLocalProvider.instance;
   Timer? _clock;
@@ -64,13 +59,18 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
   int? _viewPaymentIndex;
   String? _accountSignature;
   bool _notificationEnabled = false, _busy = false, _foreground = true;
-  int get _boundPaymentIndex => _provider.pc_account_seled_index.clamp(0, 3);
+  PCWithdrawMethod? get _boundMethod =>
+      PCWithdrawMethod.fromStorageIndex(_provider.pc_account_seled_index);
+  int get _boundPaymentIndex =>
+      (_boundMethod ?? PCWithdrawMethod.paypal).storageIndex;
   String get _boundPaymentName =>
-      const ['PayPal', 'PiX', 'Cash App', 'PagBank'][_boundPaymentIndex];
+      (_boundMethod ?? PCWithdrawMethod.paypal).label;
+  bool get _hasBoundPayment =>
+      _boundMethod != null && _provider.pc_account_id.trim().isNotEmpty;
   int get _viewingPaymentIndex => _viewPaymentIndex ?? _boundPaymentIndex;
   bool get _isViewingSavedPayment =>
       _viewPaymentIndex != null &&
-      _provider.pc_account_id.trim().isNotEmpty &&
+      _hasBoundPayment &&
       _viewingPaymentIndex == _boundPaymentIndex;
   PCWithdrawalStage get _displayStage => _isViewingSavedPayment
       ? _controller.stage
@@ -121,7 +121,8 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
               PCWithdrawalNotifications.isEnabled)();
       if (!mounted) return;
       final prefs = await SharedPreferences.getInstance();
-      final signature = '$_boundPaymentIndex:${_provider.pc_account_id.trim()}';
+      final signature =
+          '${_provider.pc_account_seled_index}:${_provider.pc_account_id.trim()}';
       final accountChanged =
           _accountSignature != null && _accountSignature != signature;
       if (accountChanged &&
@@ -134,9 +135,9 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
           _viewPaymentIndex = _boundPaymentIndex;
         } else if (_viewPaymentIndex == null) {
           final saved = prefs.getInt(PCCash.viewPaymentKey);
-          _viewPaymentIndex = saved != null && saved >= 0 && saved <= 3
-              ? saved
-              : _boundPaymentIndex;
+          _viewPaymentIndex =
+              PCWithdrawMethod.fromStorageIndex(saved)?.storageIndex ??
+              _boundPaymentIndex;
         }
         _accountSignature = signature;
         _notificationEnabled = enabled;
@@ -168,7 +169,7 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
     if (!_isViewingSavedPayment && requested <= _controller.balance) {
       PCDialogTool.toast(
         context,
-        _provider.pc_account_id.trim().isEmpty
+        !_hasBoundPayment
             ? 'Add your payment details first.'
             : 'Switch to $_boundPaymentName to continue your withdrawal.',
       );
@@ -272,12 +273,10 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
     }
   });
 
-  /// 循环浏览四个渠道，只保存浏览项，不改已填写账号所属的渠道。
+  /// 在两个渠道之间切换，只保存浏览项，不改已填写账号所属的渠道。
   Future<void> _cyclePayment() => _run(() async {
     // 渠道缓存索引与界面展示顺序不同，不能直接使用枚举索引入库。
-    const order = [0, 2, 1, 3];
-    final current = _viewingPaymentIndex;
-    final next = order[(order.indexOf(current) + 1) % order.length];
+    final next = _viewingPaymentIndex == 0 ? 2 : 0;
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setInt(PCCash.viewPaymentKey, next)) {
       throw StateError('Unable to save payment method');
@@ -294,19 +293,11 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
       ),
     );
     if (details == null) return;
-    final index = switch (details.method.name) {
-      'pix' => 1,
-      'cashApp' => 2,
-      'pagBank' => 3,
-      _ => 0,
-    };
+    final index = details.method.storageIndex;
     final account = details.account.trim();
     final prefs = await SharedPreferences.getInstance();
     if (!await prefs.setInt(_provider.pc_account_seled_indexName, index) ||
-        !await prefs.setString(
-          _provider.pc_account_idName,
-          account.contains('*') ? account : PCWithdrawValidation.mask(account),
-        ) ||
+        !await prefs.setString(_provider.pc_account_idName, account) ||
         !await prefs.setInt(PCCash.viewPaymentKey, index)) {
       throw StateError('Unable to save payment information');
     }
@@ -362,13 +353,13 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
                     end: Alignment.bottomCenter,
                     colors: [
                       Color.alphaBlend(
-                        _channelColors[_viewingPaymentIndex].withValues(
+                        _channelColors[_viewingPaymentIndex]!.withValues(
                           alpha: .82,
                         ),
                         Colors.white,
                       ),
                       Color.alphaBlend(
-                        _channelColors[_viewingPaymentIndex].withValues(
+                        _channelColors[_viewingPaymentIndex]!.withValues(
                           alpha: .06,
                         ),
                         Colors.white,
@@ -402,10 +393,7 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
                         controller: _controller,
                         scale: scale,
                         account: _provider.pc_account_id,
-                        paymentIndex: _provider.pc_account_seled_index.clamp(
-                          0,
-                          3,
-                        ),
+                        paymentIndex: _boundPaymentIndex,
                         notificationEnabled: _notificationEnabled,
                         busy: _busy,
                         onCollect: () => unawaited(_go(false)),
@@ -442,8 +430,8 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
 
   Widget _paymentHeader(double Function(double) s) {
     final index = _viewingPaymentIndex;
-    const names = ['PayPal', 'PiX', 'Cash App', 'PagBank'];
-    final brand = _channelColors[index];
+    final method = PCWithdrawMethod.forDisplay(index);
+    final brand = _channelColors[index]!;
     return SizedBox(
       height: s(36),
       child: Row(
@@ -473,7 +461,7 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
                           PCImg(name: 'pc_act_$index', size: s(20)),
                           SizedBox(width: s(4)),
                           PCText(
-                            text: names[index],
+                            text: method.label,
                             size: s(12.5),
                             color: index == 0 ? Colors.white : Colors.black,
                             weight: FontWeight.w600,
@@ -604,7 +592,7 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
                           child: PCText(
                             text: balance < target
                                 ? 'Only \$${PCQuizReward.format(target - balance)} left to withdraw \$${PCQuizReward.format(target)}'
-                                : _provider.pc_account_id.trim().isEmpty
+                                : !_hasBoundPayment
                                 ? 'Add your payment information to continue.'
                                 : 'Your withdrawal is linked to $_boundPaymentName.',
                             size: s(12),
@@ -667,14 +655,17 @@ class PCCashState extends State<PCCash> with WidgetsBindingObserver {
             ),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: (balance / target).clamp(0, 1),
-                heightFactor: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(s(6)),
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFDF2D), Color(0xFFFF5E01)],
+              child: PCProgressMotion(
+                value: (balance / target).clamp(0.0, 1.0),
+                builder: (_, animatedProgress, _) => FractionallySizedBox(
+                  widthFactor: animatedProgress,
+                  heightFactor: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(s(6)),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFDF2D), Color(0xFFFF5E01)],
+                      ),
                     ),
                   ),
                 ),

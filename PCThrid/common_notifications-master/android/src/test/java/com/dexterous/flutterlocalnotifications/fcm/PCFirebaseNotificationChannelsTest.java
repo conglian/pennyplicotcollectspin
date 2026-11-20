@@ -2,8 +2,13 @@ package com.dexterous.flutterlocalnotifications.fcm;
 
 import static org.junit.Assert.*;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.service.notification.StatusBarNotification;
 import androidx.test.core.app.ApplicationProvider;
 import com.dexterous.flutterlocalnotifications.FlutterLocalNotificationsPlugin;
 import com.dexterous.flutterlocalnotifications.models.NotificationDetails;
@@ -102,5 +107,35 @@ public class PCFirebaseNotificationChannelsTest {
     FlutterFCMPlugin.removeNotificationDetails(context, "c177fcm_piggy");
     assertNull(LocalFirebaseMessageService.buildNotificationDetails(context, message("c177fcm_piggy", "Removed", "Body")));
     assertNotNull(LocalFirebaseMessageService.buildNotificationDetails(context, message("c177fcm_piggy_two", "Still active", "Body")));
+  }
+
+  @Test public void companionRequiresANewSystemPostAndDoesNotDuplicateForegroundDelivery() {
+    NotificationManager manager = context.getSystemService(NotificationManager.class);
+    String channel = "system_fcm";
+    manager.createNotificationChannel(new NotificationChannel(channel, "System FCM", NotificationManager.IMPORTANCE_DEFAULT));
+    Intent message = new Intent("com.google.android.c2dm.intent.RECEIVE")
+        .putExtra("from", "/topics/c177fcm_piggy_two")
+        .putExtra("gcm.n.e", "1")
+        .putExtra("gcm.n.title", "System title")
+        .putExtra("gcm.n.tag", "server-tag");
+    FirebaseSystemNotification delivery = FirebaseSystemNotification.watch(context, message);
+    assertNotNull(delivery);
+    manager.notify("server-tag", 0, new Notification.Builder(context, channel)
+        .setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle("System title").build());
+    delivery.showCompanion();
+    assertEquals(1, countMediaNotifications(manager));
+
+    FirebaseSystemNotification duplicate = FirebaseSystemNotification.watch(context, message);
+    assertNotNull(duplicate);
+    duplicate.showCompanion();
+    assertEquals(1, countMediaNotifications(manager));
+  }
+
+  private int countMediaNotifications(NotificationManager manager) {
+    int count = 0;
+    for (StatusBarNotification item : manager.getActiveNotifications()) {
+      if ("pc_notice_media_v1".equals(item.getNotification().getChannelId())) count++;
+    }
+    return count;
   }
 }

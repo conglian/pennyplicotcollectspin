@@ -216,33 +216,36 @@ class PCQuizController extends ChangeNotifier {
     return reward;
   }, busyValue: null);
 
-  Future<PCQuizReward?> claim({String? expectedRewardId}) =>
-      _mutate<PCQuizReward?>(() async {
-        final reward = pendingReward;
-        if (reward == null ||
-            (expectedRewardId != null && reward.id != expectedRewardId)) {
-          return null;
-        }
-        final flow = Map<String, dynamic>.from(_data)..remove('pendingReward');
-        double afterBalance = balance;
-        if (reward.type == PCQuizRewardType.cash) {
-          afterBalance = ((balance + reward.amount) * 100).round() / 100;
-        } else if (reward.type == PCQuizRewardType.diamond) {
-          flow['diamonds'] = ((diamonds + reward.amount) * 100).round() / 100;
-        } else {
-          flow['gold'] = ((gold + reward.amount) * 100).round() / 100;
-        }
-        final journal = {
-          'action': 'claim',
-          'rewardId': reward.id,
-          'balanceAfter': afterBalance,
-          'flow': flow,
-        };
-        await _stored(_prefs!.setString(journalKey, jsonEncode(journal)));
-        await _applyJournal(journal);
-        await onSync?.call();
-        return reward;
-      }, busyValue: null);
+  Future<PCQuizReward?> claim({
+    String? expectedRewardId,
+    bool doubleGold = false,
+  }) => _mutate<PCQuizReward?>(() async {
+    final pending = pendingReward;
+    if (pending == null ||
+        (expectedRewardId != null && pending.id != expectedRewardId)) {
+      return null;
+    }
+    final reward = pending.forSettlement(doubleGold: doubleGold);
+    final flow = Map<String, dynamic>.from(_data)..remove('pendingReward');
+    double afterBalance = balance;
+    if (reward.type == PCQuizRewardType.cash) {
+      afterBalance = ((balance + reward.amount) * 100).round() / 100;
+    } else if (reward.type == PCQuizRewardType.diamond) {
+      flow['diamonds'] = ((diamonds + reward.amount) * 100).round() / 100;
+    } else {
+      flow['gold'] = ((gold + reward.amount) * 100).round() / 100;
+    }
+    final journal = {
+      'action': 'claim',
+      'rewardId': reward.id,
+      'balanceAfter': afterBalance,
+      'flow': flow,
+    };
+    await _stored(_prefs!.setString(journalKey, jsonEncode(journal)));
+    await _applyJournal(journal);
+    await onSync?.call();
+    return reward;
+  }, busyValue: null);
 
   /// 放弃关闭或激励失败的当前待奖；不发奖、不回退题号/累计答题及已赠转盘次数。
   /// 持久化后才返回，旧弹窗的迟到回调不能删除新题奖励。

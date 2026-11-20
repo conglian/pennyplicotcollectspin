@@ -69,5 +69,62 @@
       "hasAlphaChannel": true,
       "topLeftAlpha": 0
     }
-  ]
+  ],
+  "wheelCollectibleAwards": {
+    "frames": [
+      "914:266",
+      "914:646"
+    ],
+    "nativeExportConstraint": {
+      "type": "SCALE",
+      "value": 3
+    },
+    "assets": [
+      {
+        "figmaNode": "914:433",
+        "path": "assets/images/pc_collectible_award_diamond.png",
+        "sourceNodeLogicalSize": [
+          140,
+          140
+        ],
+        "width": 420,
+        "height": 420,
+        "original_bytes": 139859,
+        "output_bytes": 128570,
+        "hasAlphaChannel": true,
+        "lossless_verified": true,
+        "image_data_sha256": "2d7b480db6711a2ebfefdcc4eba3ba5fff86a91b50288f3f14f01e2a0a2d7419"
+      },
+      {
+        "figmaNode": "914:817",
+        "path": "assets/images/pc_collectible_award_gold.png",
+        "sourceNodeLogicalSize": [
+          140,
+          140
+        ],
+        "width": 420,
+        "height": 420,
+        "original_bytes": 108647,
+        "output_bytes": 99765,
+        "hasAlphaChannel": true,
+        "lossless_verified": true,
+        "image_data_sha256": "95ed6cbcf181b00ef4c60c8631226e9c720681f338cb4ef7f46afd10138c9b08"
+      },
+      {
+        "figmaNode": "914:842",
+        "path": "assets/images/pc_collectible_award_rays.png",
+        "sourceNodeLogicalSize": [
+          160,
+          160
+        ],
+        "width": 480,
+        "height": 480,
+        "original_bytes": 265659,
+        "output_bytes": 250969,
+        "hasAlphaChannel": true,
+        "lossless_verified": true,
+        "image_data_sha256": "c671655a2b7560ea50477cf89b9e17af9324db696f5ee731d9e7edda732aaa38"
+      }
+    ]
+  }
 }

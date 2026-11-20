@@ -46,7 +46,7 @@ void main() {
     int withdrawalTarget = 100,
     int boundPayment = 0,
     int? viewedPayment,
-    String account = 'p***.com',
+    String account = 'player@example.com',
     Future<bool> Function(String)? ad,
     Future<PCAdOutcome> Function(String)? adOutcome,
     Future<void> Function()? onSync,
@@ -465,12 +465,7 @@ void main() {
       find.byWidgetPredicate((w) => w is PCImg && w.name == 'cs_replece_icon'),
       findsNothing,
     );
-    for (final (index, asset) in [
-      (2, 'pc_act_2'),
-      (1, 'pc_act_1'),
-      (3, 'pc_act_3'),
-      (0, 'pc_act_0'),
-    ]) {
+    for (final (index, asset) in [(2, 'pc_act_2'), (0, 'pc_act_0')]) {
       await tap(tester, 'pcCashChangePayment');
       expect(find.byType(PCProcessAccountDialog), findsNothing);
       expect(PCLocalProvider.instance.pc_account_seled_index, 0);
@@ -502,8 +497,8 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(backgrounds.length, 4);
-    expect(pageBackgrounds.length, 4);
+    expect(backgrounds.length, 2);
+    expect(pageBackgrounds.length, 2);
     await tap(tester, 'pcCashPayment');
     expect(find.byType(PCProcessAccountDialog), findsOneWidget);
     Navigator.of(tester.element(find.byType(PCProcessAccountDialog))).pop();
@@ -512,8 +507,8 @@ void main() {
     await clean(tester, controller);
   });
 
-  testWidgets('四个绑定渠道的六状态仅在所属渠道展示，切走显示全部档位且切回恢复', (tester) async {
-    const order = [0, 2, 1, 3];
+  testWidgets('两个绑定渠道的六状态仅在所属渠道展示，切走显示全部档位且切回恢复', (tester) async {
+    const order = [0, 2];
     for (final bound in order) {
       for (final stage in PCWithdrawalStage.values) {
         var ads = 0;
@@ -553,13 +548,13 @@ void main() {
         }
 
         expectOwnState();
-        for (var step = 1; step <= 4; step++) {
+        for (var step = 1; step <= 2; step++) {
           await tap(tester, 'pcCashChangePayment');
-          final viewed = order[(order.indexOf(bound) + step) % 4];
+          final viewed = order[(order.indexOf(bound) + step) % order.length];
           expect(prefs.getInt(PCCash.viewPaymentKey), viewed);
           expect(prefs.getInt('pc_account_seled_index'), bound);
           expect(PCLocalProvider.instance.pc_account_seled_index, bound);
-          expect(prefs.getString('pc_account_id'), 'p***.com');
+          expect(prefs.getString('pc_account_id'), 'player@example.com');
           expect(
             find.descendant(
               of: find.byKey(const ValueKey('pcCashPayment')),
@@ -606,7 +601,7 @@ void main() {
       final controller = await create(
         stage,
         boundPayment: 2,
-        viewedPayment: 1,
+        viewedPayment: 0,
         task: 'video',
         ad: (_) async {
           ads++;
@@ -634,8 +629,8 @@ void main() {
       }
       expect(find.byType(PCCashWithdrawalContent), findsNothing);
       expect(prefs.getInt('pc_account_seled_index'), 2);
-      expect(prefs.getInt(PCCash.viewPaymentKey), 1);
-      expect(prefs.getString('pc_account_id'), 'p***.com');
+      expect(prefs.getInt(PCCash.viewPaymentKey), 0);
+      expect(prefs.getString('pc_account_id'), 'player@example.com');
       expect(ads, 0);
       expect(controller.taskProgress, 3);
       expect(controller.queueTotal, 20);
@@ -681,22 +676,22 @@ void main() {
     final controller = await create(
       PCWithdrawalStage.reviewing,
       boundPayment: 2,
-      viewedPayment: 3,
+      viewedPayment: 0,
     );
     await mount(tester, controller);
     expect(find.byType(PCCashWithdrawalContent), findsNothing);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('pc_account_seled_index', 1);
-    await prefs.setString('pc_account_id', 'n***.com');
+    await prefs.setInt('pc_account_seled_index', 0);
+    await prefs.setString('pc_account_id', 'new@example.com');
     await PCLocalProvider.instance.init();
     await advance(tester);
-    expect(prefs.getInt(PCCash.viewPaymentKey), 1);
+    expect(prefs.getInt(PCCash.viewPaymentKey), 0);
     expect(find.byKey(const ValueKey('pcCashStage_reviewing')), findsOneWidget);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('pcCashPayment')),
         matching: find.byWidgetPredicate(
-          (w) => w is PCImg && w.name == 'pc_act_1',
+          (w) => w is PCImg && w.name == 'pc_act_0',
         ),
       ),
       findsOneWidget,
@@ -732,7 +727,7 @@ void main() {
     final controller = await create(
       PCWithdrawalStage.lastStep,
       boundPayment: 2,
-      viewedPayment: 3,
+      viewedPayment: 0,
       task: 'video',
     );
     await mount(tester, controller);
@@ -743,7 +738,7 @@ void main() {
     );
     expect(form.hasSavedAccount, isTrue);
     expect(form.initialPaymentIndex, 2);
-    expect(form.initialAccount, 'p***.com');
+    expect(form.initialAccount, 'player@example.com');
     Navigator.of(tester.element(find.byType(PCProcessAccountDialog))).pop();
     await advance(tester);
     await clean(tester, controller);
@@ -757,19 +752,18 @@ void main() {
     await PCLocalProvider.instance.init();
     await mount(tester, cold);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getInt(PCCash.viewPaymentKey), 3);
+    expect(prefs.getInt(PCCash.viewPaymentKey), 0);
     expect(prefs.getInt('pc_account_seled_index'), 2);
     expect(find.byType(PCCashWithdrawalContent), findsNothing);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('pcCashPayment')),
         matching: find.byWidgetPredicate(
-          (w) => w is PCImg && w.name == 'pc_act_3',
+          (w) => w is PCImg && w.name == 'pc_act_0',
         ),
       ),
       findsOneWidget,
     );
-    await tap(tester, 'pcCashChangePayment'); // PagBank -> PayPal
     await tap(tester, 'pcCashChangePayment'); // PayPal -> Cash App
     expect(prefs.getInt(PCCash.viewPaymentKey), 2);
     expect(find.byKey(const ValueKey('pcCashStage_lastStep')), findsOneWidget);

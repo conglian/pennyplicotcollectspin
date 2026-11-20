@@ -1,3 +1,4 @@
+import 'PCWithdrawMethod.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -77,7 +78,10 @@ class _PCPigUpgradeHostState extends State<PCPigUpgradeHost>
       final provider = PCLocalProvider.instance;
       final amount = PCNumberHelpers().pc_firstTarget;
       final paymentAsset =
-          'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}';
+          PCWithdrawMethod.fromStorageIndex(
+            provider.pc_account_seled_index,
+          )?.paymentAsset ??
+          '';
       final date =
           DateTime.tryParse(
             prefs.getString('pc_pig_upgrade_date_$level') ?? '',

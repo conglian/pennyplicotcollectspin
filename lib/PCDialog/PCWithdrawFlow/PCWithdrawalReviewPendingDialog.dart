@@ -84,11 +84,12 @@ class _PCWithdrawalReviewPendingDialogState
             final t = MediaQuery.disableAnimationsOf(context)
                 ? 1.0
                 : Curves.easeInOut.transform(_motion.value);
-            final progress = (from + (to - from) * t).round();
+            final progress = from + (to - from) * t;
             return PCWithdrawalProgressBar(
               key: const ValueKey('pcWithdrawalPendingProgress'),
               progress: progress / 100,
-              label: '$progress%',
+              duration: Duration.zero,
+              label: '${progress.round()}%',
             );
           },
         ),

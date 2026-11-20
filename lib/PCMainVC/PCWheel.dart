@@ -1,3 +1,4 @@
+import '../PCTool/PCWithdrawMethod.dart';
 import '../PCTool/PCAnalytics.dart';
 import '../PCTool/PCAdaptiveLayout.dart';
 import 'dart:async';
@@ -458,6 +459,18 @@ class PCWheelState extends State<PCWheel> with WidgetsBindingObserver {
     PCQuizReward? claimed;
     final provider = PCLocalProvider.instance;
     try {
+      Future<bool> settleClaim({bool doubleGold = false}) async {
+        claimed = await _flow.claim(
+          expectedRewardId: reward.id,
+          doubleGold: doubleGold,
+        );
+        if (claimed != null && mounted) {
+          _releaseRewardPresentation ??= PCDialogCoordinator.instance
+              .holdPresentation();
+        }
+        return claimed != null;
+      }
+
       await context.tipShow2(
         PCAwardDialog(
           award: reward.amount,
@@ -465,32 +478,22 @@ class PCWheelState extends State<PCWheel> with WidgetsBindingObserver {
           balance: provider.pc_dollar_number,
           withdrawalTarget:
               PCNewUserGuideController.instance.config.withdrawalTarget,
-          paymentAsset: 'pc_act_${provider.pc_account_seled_index.clamp(0, 3)}',
-          remainingCollectible: reward.type == PCQuizRewardType.diamond
-              ? (PCQuizConfig.diamondTarget - _flow.diamonds).clamp(
-                  0,
-                  PCQuizConfig.diamondTarget,
-                )
-              : (PCQuizConfig.goldTarget - _flow.gold).clamp(
-                  0,
-                  PCQuizConfig.goldTarget,
-                ),
+          paymentAsset: PCWithdrawMethod.forDisplay(
+            provider.pc_account_seled_index,
+          ).paymentAsset,
+          collectibleCount: reward.type == PCQuizRewardType.diamond
+              ? _flow.diamonds
+              : _flow.gold,
           analyticsSource: 'wheel',
           claimAdPlacement: 'nkmdl_wheel_rv',
           closeAdPlacement: 'nkmdl_wheel_int',
           onAbandon: () async {
             await _flow.discardPending(expectedRewardId: reward.id);
           },
-          onClaim: () async {
-            claimed = await _flow.claim(expectedRewardId: reward.id);
-            if (claimed != null && mounted) {
-              _releaseRewardPresentation ??= PCDialogCoordinator.instance
-                  .holdPresentation();
-            }
-            return claimed != null;
-          },
+          onClaim: settleClaim,
+          onDoubleClaim: () => settleClaim(doubleGold: true),
         ),
-        bc: pcDialogBackdrop,
+        bc: PCAwardDialog.backdropFor(reward.type),
         scaleContent: false,
       );
     } finally {

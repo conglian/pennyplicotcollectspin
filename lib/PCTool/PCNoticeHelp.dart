@@ -4,9 +4,9 @@ import 'dart:math';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/timezone.dart' as tz;
 import 'PCDialogCoordinator.dart';
 import 'PCAnalytics.dart';
 import 'PCForegroundAdController.dart';
@@ -19,7 +19,7 @@ import 'PCWithdrawalController.dart';
 import 'pc_LocalProvider.dart';
 import 'pc_ad_manger.dart';
 
-/// 媒体/固定通知各自独立的ID、通道及单次触发时间。
+/// 四路循环本地通知各自使用独立ID和通道。
 class PCNotificationSchedule {
   const PCNotificationSchedule(
     this.id,
@@ -45,7 +45,7 @@ class PCFcmNotificationSlot {
   final PCNoticeKind kind;
 }
 
-/// 通知唯一入口：4媒体、1前台服务、4固定单次提醒，以及2个FCM槽。
+/// 通知唯一入口：4路循环本地提醒、场景通知、1条前台服务及2个FCM槽。
 /// 保留站内横幅和既有导航API；回前台插屏独立判定，不从通知计时器触发广告。
 class PCNoticeHelp with WidgetsBindingObserver {
   PCNoticeHelp._({
@@ -90,64 +90,10 @@ class PCNoticeHelp with WidgetsBindingObserver {
     'fcm2': 'c177fcm_piggy_two',
   };
   static const schedules = [
-    PCNotificationSchedule(
-      5590,
-      '177notice1',
-      'Piggy Reminder 1',
-      26,
-      'noti1',
-      kind: PCNoticeKind.account,
-    ),
-    PCNotificationSchedule(4562, '177notice2', 'Piggy Reminder 2', 62, 'noti2'),
-    PCNotificationSchedule(
-      7552,
-      '177notice3',
-      'Piggy Reminder 3',
-      117,
-      'noti3',
-      kind: PCNoticeKind.goal,
-    ),
-    PCNotificationSchedule(
-      9475,
-      '177notice4',
-      'Piggy Reminder 4',
-      162,
-      'noti4',
-    ),
-    PCNotificationSchedule(
-      4738,
-      '177notice0',
-      'Piggy Media 1',
-      29,
-      'Media1',
-      media: true,
-      kind: PCNoticeKind.account,
-    ),
-    PCNotificationSchedule(
-      2788,
-      '177notice21',
-      'Piggy Media 2',
-      59,
-      'Media2',
-      media: true,
-    ),
-    PCNotificationSchedule(
-      2934,
-      '177notice31',
-      'Piggy Media 3',
-      119,
-      'Media3',
-      media: true,
-      kind: PCNoticeKind.goal,
-    ),
-    PCNotificationSchedule(
-      1320,
-      '177notice41',
-      'Piggy Media 4',
-      159,
-      'Media4',
-      media: true,
-    ),
+    PCNotificationSchedule(5590, '177notice1', 'Piggy Reminder 1', 30, 'local'),
+    PCNotificationSchedule(4562, '177notice2', 'Piggy Reminder 2', 39, 'local'),
+    PCNotificationSchedule(7552, '177notice3', 'Piggy Reminder 3', 59, 'local'),
+    PCNotificationSchedule(9475, '177notice4', 'Piggy Reminder 4', 79, 'local'),
   ];
   static const fcmChannels = [
     PCFcmNotificationSlot(
@@ -163,11 +109,46 @@ class PCNoticeHelp with WidgetsBindingObserver {
       PCNoticeKind.goal,
     ),
   ];
-  static const _planKey = 'pc_notification_plan_v3';
   static const _topicsKey = 'pc_notification_fcm_topics_v1';
   static const _subscribedKey = 'pc_notification_fcm_subscribed_v1';
-  static const _migrationKey = 'pc_notification_channels_migrated_v3';
-  static const _broadcastIds = [2829, 1029];
+  static const _migrationKey = 'pc_notification_channels_migrated_v4';
+  static const _sceneNotifications = <(String, String, String?)>[
+    ('android.intent.action.USER_PRESENT', 'unlock', null),
+    ('android.intent.action.SCREEN_ON', 'screen_on', null),
+    ('android.intent.action.SCREEN_OFF', 'screen_off', null),
+    ('android.intent.action.ACTION_POWER_CONNECTED', 'power_connected', null),
+    (
+      'android.intent.action.ACTION_POWER_DISCONNECTED',
+      'power_disconnected',
+      null,
+    ),
+    ('android.intent.action.CLOSE_SYSTEM_DIALOGS', 'background', null),
+    ('android.intent.action.TIME_SET', 'system_time_changed', null),
+    ('android.intent.action.TIMEZONE_CHANGED', 'system_timezone_changed', null),
+    ('android.intent.action.DATE_CHANGED', 'system_date_changed', null),
+    ('android.intent.action.PACKAGE_ADDED', 'package_added', 'package'),
+    ('android.intent.action.PACKAGE_REMOVED', 'package_removed', 'package'),
+    ('android.intent.action.PACKAGE_CHANGED', 'package_changed', 'package'),
+    ('android.intent.action.PACKAGE_REPLACED', 'package_replaced', 'package'),
+  ];
+  static const _broadcastIds = [
+    2829,
+    2830,
+    2831,
+    2832,
+    2833,
+    2834,
+    2835,
+    2836,
+    2837,
+    2840,
+    2841,
+    2842,
+    2843,
+  ];
+  static const _notificationChannel = MethodChannel(
+    'dexterous.com/flutter/local_notifications',
+  );
 
   final bool _testing;
   final bool Function()? _guideComplete;
@@ -198,6 +179,7 @@ class PCNoticeHelp with WidgetsBindingObserver {
       _foreground = true,
       _observing = false;
   bool _refreshing = false, _refreshAgain = false, _channelsCreated = false;
+  bool _wasBackgrounded = false;
   bool? _foregroundServiceEnabled;
   String? _foregroundServiceAmount, _broadcastSignature;
   PCNoticeAction? _pendingAction;
@@ -249,11 +231,11 @@ class PCNoticeHelp with WidgetsBindingObserver {
     });
   }
 
-  /// 每次冷启动只申请一次系统通知权限；普通刷新或回前台不会再次申请。
+  /// 每次冷启动读取通知权限；系统权限只在用户点击引导按钮后申请。
   Future<void> initializeForStartup() =>
       _startupPermission ??= _initializeForStartup();
 
-  /// 召回弹窗只等待已经开始的启动申请，不能因此触发新的系统授权请求。
+  /// 兼容旧调用方；权限检查不再自动弹出系统授权框。
   Future<void> waitForStartupPermission() =>
       _startupPermission ?? Future<void>.value();
 
@@ -282,24 +264,7 @@ class PCNoticeHelp with WidgetsBindingObserver {
     try {
       await initialize();
       if (_disposed || !_ready || _startupPermissionExpired) return;
-      final enabled = await _permissionEnabled();
-      if (_disposed || _startupPermissionExpired) return;
-      if (!enabled) {
-        _startupSystemRequestPending = true;
-        try {
-          if (_isAndroid) {
-            await _android.requestNotificationsPermission();
-          } else {
-            await _plugin
-                .resolvePlatformSpecificImplementation<
-                  IOSFlutterLocalNotificationsPlugin
-                >()
-                ?.requestPermissions(alert: true, badge: true, sound: true);
-          }
-        } finally {
-          _startupSystemRequestPending = false;
-        }
-      }
+      await _permissionEnabled();
     } catch (error) {
       // 拒绝、缺少系统界面或插件异常不能阻断启动，后续召回仍可引导设置。
       debugPrint('Notification startup permission: $error');
@@ -380,7 +345,7 @@ class PCNoticeHelp with WidgetsBindingObserver {
     if (_ready) await refreshSchedules();
   }
 
-  /// 兼容更新文件入口；初始化不主动申请权限，沿用现有通知引导的用户操作。
+  /// 兼容更新文件入口；初始化本身不申请系统权限。
   Future<void> PC_initNotice(BuildContext context) => initialize();
   Future<void> PC_startForegroundService() => refreshSchedules();
   Future<void> PC_setNoticeStatus() async {
@@ -389,6 +354,35 @@ class PCNoticeHelp with WidgetsBindingObserver {
       await _android.requestNotificationsPermission();
     }
     await refreshSchedules();
+  }
+
+  /// 权限引导按钮的用户手势入口。系统永久拒绝后返回 true 以打开设置页。
+  Future<bool> requestPermissionFromGuide() async {
+    if (!_supported) return false;
+    if (_isAndroid) {
+      _startupSystemRequestPending = true;
+      bool granted = false;
+      try {
+        granted = await _android.requestNotificationsPermission() ?? false;
+      } finally {
+        _startupSystemRequestPending = false;
+      }
+      if (granted || await _permissionEnabled()) {
+        if (!_disposed) await refreshSchedules();
+        return false;
+      }
+      final canAskAgain = await _notificationChannel.invokeMethod<bool>(
+        'shouldShowNotificationPermissionRationale',
+      );
+      return canAskAgain == false;
+    }
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+    if (!_disposed) await refreshSchedules();
+    return false;
   }
 
   void attachNavigation(
@@ -416,13 +410,8 @@ class PCNoticeHelp with WidgetsBindingObserver {
   void handlePayload(String? payload) {
     final action = PCNoticeMessage.parseAction(payload);
     if (action == null) return;
-    final lower = (payload ?? '').toLowerCase();
     PCAnalytics.event('inform_c', {
-      'type': lower.contains('fcm')
-          ? 'fcm'
-          : lower.contains('unlock') || lower.contains('screen')
-          ? 'unlock'
-          : 'local',
+      'type': PCNoticeMessage.analyticsType(payload),
     });
     _pendingAction = action;
     _deliverPendingAction();
@@ -460,6 +449,14 @@ class PCNoticeHelp with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) {
+      _wasBackgrounded = false;
+    } else if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.hidden) &&
+        !_wasBackgrounded) {
+      _wasBackgrounded = true;
+      unawaited(_showSceneNotification('background'));
+    }
     if (!_foreground) dismiss();
     _resetForegroundTimers();
     // 通知导航尚未消费时先排除回流广告，避免点击通知后同时打开插屏。
@@ -535,9 +532,8 @@ class PCNoticeHelp with WidgetsBindingObserver {
   AndroidNotificationDetails _details(
     String channel,
     String name,
-    PCNoticeMessage message, {
-    bool media = false,
-  }) => AndroidNotificationDetails(
+    PCNoticeMessage message,
+  ) => AndroidNotificationDetails(
     channel,
     name,
     icon: 'pc_notification_small',
@@ -545,9 +541,7 @@ class PCNoticeHelp with WidgetsBindingObserver {
     priority: Priority.high,
     autoCancel: true,
     onlyAlertOnce: true,
-    styleInformation: media
-        ? MediaStyleInformation(image: 'pc_notice_account_icon')
-        : _beauty(message),
+    styleInformation: _beauty(message),
   );
   Future<void> _createChannels() async {
     if (_channelsCreated) return;
@@ -579,11 +573,43 @@ class PCNoticeHelp with WidgetsBindingObserver {
     _channelsCreated = true;
   }
 
+  List<Map<String, String>> _notificationCopies() => [
+    for (var index = 0; index < 4; index++)
+      () {
+        final message = PCStepMotivationManager.PC_getMotivation(
+          index,
+          balance: _balance,
+        );
+        return {'title': message.title, 'body': message.body};
+      }(),
+  ];
+
+  Future<void> _configureLocalNotificationCopies() async {
+    await _notificationChannel.invokeMethod<void>(
+      'configureLocalNotificationCopies',
+      {'copies': _notificationCopies()},
+    );
+  }
+
   Future<void> _migrate(SharedPreferences prefs) async {
     if (prefs.getBool(_migrationKey) == true) return;
     await _android.stopForegroundService();
-    for (final id in [8852, 1268, 6722, 1195, 17759]) {
+    for (final id in [
+      8852,
+      1268,
+      6722,
+      1195,
+      17759,
+      4738,
+      2788,
+      2934,
+      1320,
+      1029,
+    ]) {
       await _android.cancel(id);
+    }
+    for (final schedule in schedules) {
+      await _android.cancel(schedule.id);
     }
     for (final channel in [
       'pc_balance_service_v1',
@@ -650,129 +676,44 @@ class PCNoticeHelp with WidgetsBindingObserver {
     }
   }
 
-  /// 单次计划保留绝对时间；刷新余额不推迟，已发项不按间隔重排。
-  Future<void> _scheduleOnce(SharedPreferences prefs) async {
-    final revision = schedules.map((s) => '${s.id}:${s.minutes}').join(',');
-    var plan = _readMap(prefs, _planKey);
-    if (plan['revision'] != revision || plan['anchor'] is! int) {
-      plan = {
-        'revision': revision,
-        'anchor': DateTime.now().millisecondsSinceEpoch,
-        'issued': <int>[],
-        'signatures': <String, String>{},
-      };
-      await prefs.setString(_planKey, jsonEncode(plan));
-    }
-    final anchor = DateTime.fromMillisecondsSinceEpoch(
-      plan['anchor'] as int,
-      isUtc: true,
-    );
-    final issued = (plan['issued'] as List? ?? []).whereType<int>().toSet();
-    final suspended = (plan['suspended'] as List? ?? [])
-        .whereType<int>()
-        .toSet();
-    final signatures = Map<String, dynamic>.from(
-      plan['signatures'] as Map? ?? {},
-    );
-    final copyIndices = Map<String, dynamic>.from(
-      plan['copyIndices'] as Map? ?? {},
-    );
+  /// 四路本地提醒分别在30/39/59/79分钟后开始循环，余额更新不重置计时。
+  Future<void> _scheduleIntervals() async {
     final pending = (await _android.pendingNotificationRequests())
-        .map((p) => p.id)
+        .map((item) => item.id)
         .toSet();
     for (final schedule in schedules) {
-      final due = anchor.add(Duration(minutes: schedule.minutes));
-      final key = '${schedule.id}';
-      var copyIndex = copyIndices[key];
-      if (copyIndex is! int ||
-          copyIndex < 0 ||
-          copyIndex >= PCStepMotivationManager.templateCount) {
-        copyIndex = PCStepMotivationManager.randomIndex();
-        copyIndices[key] = copyIndex;
-      }
-      final copy = PCStepMotivationManager.PC_getMotivation(
-        copyIndex,
-        balance: _balance,
-      );
-      final original = schedule.message(_balance, _target);
+      if (pending.contains(schedule.id)) continue;
       final message = PCNoticeMessage(
-        kind: original.kind == PCNoticeKind.account
-            ? PCNoticeKind.goal
-            : original.kind,
+        kind: schedule.kind,
         balance: _balance,
         target: _target,
-        titleOverride: copy.title,
-        bodyOverride: copy.body,
+        titleOverride: PCStepMotivationManager.PC_getMotivation(
+          0,
+          balance: _balance,
+        ).title,
+        bodyOverride: PCStepMotivationManager.PC_getMotivation(
+          0,
+          balance: _balance,
+        ).body,
       );
-      final signature =
-          '${message.kind.name}:${message.amount}:${message.title}:${message.body}';
-      if ((issued.contains(schedule.id) &&
-              !pending.contains(schedule.id) &&
-              !suspended.contains(schedule.id)) ||
-          !due.isAfter(DateTime.now())) {
-        suspended.remove(schedule.id);
-        continue;
-      }
-      if (pending.contains(schedule.id) &&
-          signatures['${schedule.id}'] == signature) {
-        continue;
-      }
       try {
-        await _android.zonedSchedule(
+        await _android.periodicallyShowWithDuration(
           schedule.id,
           message.title,
           message.body,
-          tz.TZDateTime.from(due, tz.UTC),
-          _details(
+          Duration(minutes: schedule.minutes),
+          notificationDetails: _details(
             schedule.channel,
             schedule.nameKey,
             message,
-            media: schedule.media,
           ),
-          scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           payload: schedule.payload,
+          scheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
-        issued.add(schedule.id);
-        suspended.remove(schedule.id);
-        signatures['${schedule.id}'] = signature;
-        plan = {
-          ...plan,
-          'issued': issued.toList(),
-          'signatures': signatures,
-          'suspended': suspended.toList(),
-          'copyIndices': copyIndices,
-        };
-        await prefs.setString(_planKey, jsonEncode(plan));
       } catch (error) {
         debugPrint('Notification ${schedule.id}: $error');
       }
     }
-    await prefs.setString(
-      _planKey,
-      jsonEncode({
-        ...plan,
-        'suspended': suspended.toList(),
-        'copyIndices': copyIndices,
-      }),
-    );
-  }
-
-  Future<void> _suspendPlan(SharedPreferences prefs) async {
-    final plan = _readMap(prefs, _planKey);
-    if (plan.isEmpty) return;
-    final pending = (await _android.pendingNotificationRequests())
-        .map((p) => p.id)
-        .toSet();
-    final suspended = (plan['suspended'] as List? ?? [])
-        .whereType<int>()
-        .toSet();
-    suspended.addAll(
-      schedules.where((s) => pending.contains(s.id)).map((s) => s.id),
-    );
-    await prefs.setString(
-      _planKey,
-      jsonEncode({...plan, 'suspended': suspended.toList()}),
-    );
   }
 
   Future<void> configureFcmTopics({
@@ -852,13 +793,14 @@ class PCNoticeHelp with WidgetsBindingObserver {
   Future<void> _refreshBroadcasts() async {
     final signature = '$_balance:$_target';
     if (_broadcastSignature == signature) return;
-    for (var i = 0; i < _broadcastIds.length; i++) {
-      final schedule = schedules[i];
-      final copy = PCStepMotivationManager.PC_getRandomMotivation(
+    for (var i = 0; i < _sceneNotifications.length; i++) {
+      final (action, type, dataScheme) = _sceneNotifications[i];
+      final copy = PCStepMotivationManager.PC_getMotivation(
+        i % PCStepMotivationManager.templateCount,
         balance: _balance,
       );
       final message = PCNoticeMessage(
-        kind: PCNoticeKind.goal,
+        kind: PCNoticeKind.account,
         balance: _balance,
         target: _target,
         titleOverride: copy.title,
@@ -868,32 +810,43 @@ class PCNoticeHelp with WidgetsBindingObserver {
         _broadcastIds[i],
         message.title,
         message.body,
-        const Duration(seconds: 30),
-        i == 0
-            ? 'android.intent.action.SCREEN_OFF'
-            : 'android.intent.action.SCREEN_ON',
-        _details(schedule.channel, schedule.nameKey, message),
-        i == 0 ? 'screenoff' : 'screenon',
-        randomMessages: [
-          for (
-            var index = 0;
-            index < PCStepMotivationManager.templateCount;
-            index++
-          )
-            {
-              'title': PCStepMotivationManager.PC_getMotivation(
-                index,
-                balance: _balance,
-              ).title,
-              'body': PCStepMotivationManager.PC_getMotivation(
-                index,
-                balance: _balance,
-              ).body,
-            },
-        ],
+        const Duration(seconds: 12),
+        action,
+        _details('177notice1', 'Piggy Scene Reminder', message),
+        message.payloadFor(type: type),
+        dataScheme: dataScheme,
       );
     }
     _broadcastSignature = signature;
+  }
+
+  Future<void> _showSceneNotification(String type) async {
+    if (_disposed || !_ready || !_isAndroid || !_guideReady) return;
+    try {
+      if (!await _permissionEnabled()) return;
+      await _createChannels();
+      final copy = PCStepMotivationManager.PC_getRandomMotivation(
+        balance: _balance,
+      );
+      final message = PCNoticeMessage(
+        kind: PCNoticeKind.account,
+        balance: _balance,
+        target: _target,
+        titleOverride: copy.title,
+        bodyOverride: copy.body,
+      );
+      await _plugin.show(
+        2829,
+        message.title,
+        message.body,
+        NotificationDetails(
+          android: _details('177notice1', 'Piggy Scene Reminder', message),
+        ),
+        payload: message.payloadFor(type: type),
+      );
+    } catch (error) {
+      debugPrint('Scene notification $type: $error');
+    }
   }
 
   Future<void> refreshSchedules() async {
@@ -915,7 +868,6 @@ class PCNoticeHelp with WidgetsBindingObserver {
         final enabled = _guideReady && await _permissionEnabled();
         await _migrate(prefs);
         if (!enabled) {
-          await _suspendPlan(prefs);
           await _refreshForegroundService(false);
           for (final id in [...schedules.map((s) => s.id), ..._broadcastIds]) {
             await _android.cancel(id);
@@ -925,8 +877,9 @@ class PCNoticeHelp with WidgetsBindingObserver {
           continue;
         }
         await _createChannels();
+        await _configureLocalNotificationCopies();
         await _refreshForegroundService(true);
-        await _scheduleOnce(prefs);
+        await _scheduleIntervals();
         await _refreshFcm(prefs, true);
         await _refreshBroadcasts();
       } while (_refreshAgain && !_disposed);

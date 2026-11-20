@@ -16,8 +16,13 @@ import 'PCGuideIdentity.dart';
 /// 读取页面题板的真实位置，题目、底板和选项保持重合；仅答案区域可点击。
 /// 每题只接受一次点击，显示对错1秒后返回；由控制器安排领奖或下一题。
 class PCGuideQuizDialog extends StatefulWidget {
-  const PCGuideQuizDialog({super.key, required this.index});
+  const PCGuideQuizDialog({
+    super.key,
+    required this.index,
+    this.onAnswerSelected,
+  });
   final int index;
+  final ValueChanged<bool>? onAnswerSelected;
 
   /// 大屏题板可滚动，展示遮罩前先将真实题板完整移入可见区域。
   /// 仅由展示入口调用一次；不在build或动画帧内改变底层滚动位置。
@@ -74,8 +79,10 @@ class _PCGuideQuizDialogState extends State<PCGuideQuizDialog> {
     PCAnalytics.event('new_quiz_guide_c');
     _hintTimer?.cancel();
     setState(() => _selected = first);
+    widget.onAnswerSelected?.call(first);
+    final route = ModalRoute.of(context);
     _feedbackTimer = Timer(const Duration(seconds: 1), () {
-      if (mounted) Navigator.of(context).pop(first);
+      if (mounted && route?.isCurrent == true) Navigator.of(context).pop(first);
     });
   }
 

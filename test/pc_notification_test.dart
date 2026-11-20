@@ -65,6 +65,19 @@ void main() {
     }
   });
 
+  test('Home 键新旧通知的点击类型统一为 background，保留提现跳转', () {
+    for (final type in ['home_key', 'background']) {
+      final payload = account.payloadFor(type: type);
+      expect(PCNoticeMessage.analyticsType(payload), 'background');
+      expect(PCNoticeMessage.parseAction(payload), PCNoticeAction.withdraw);
+    }
+    expect(PCNoticeMessage.analyticsType('home_key'), 'background');
+    expect(
+      PCNoticeMessage.analyticsType(account.payloadFor(type: 'media')),
+      'media',
+    );
+  });
+
   for (final width in [320.0, 430.0]) {
     testWidgets('通知保留四种展开收起样式在 $width 宽度不溢出', (tester) async {
       tester.view.physicalSize = Size(width, 920);

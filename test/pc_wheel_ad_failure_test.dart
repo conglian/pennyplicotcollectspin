@@ -168,7 +168,7 @@ void main() {
     });
   }
 
-  testWidgets('普通关闭转盘领奖框立即放弃，Tab往返及冷启动不补弹不返还机会', (tester) async {
+  testWidgets('系统返回关闭转盘金砖框即放弃，Tab往返及冷启动不补弹不返还机会', (tester) async {
     final flow = await prepareWheel();
     final active = ValueNotifier(true);
     cleanup(tester, flow, active);
@@ -179,7 +179,7 @@ void main() {
     };
     await mount(tester, flow, active);
     final oldId = await spinForReward(tester, flow);
-    await tester.tap(find.byKey(const ValueKey('pcQuizCloseReward')));
+    await tester.binding.handlePopRoute();
     await frames(tester);
     expect(find.byType(PCAwardDialog), findsNothing);
     expect(flow.pending, isNull);

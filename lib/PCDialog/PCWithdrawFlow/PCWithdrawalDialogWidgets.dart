@@ -1,3 +1,4 @@
+import '../../PCTool/PCProgressMotion.dart';
 import 'package:flutter/material.dart';
 
 import '../../PCTool/PCNoticeMessage.dart';
@@ -300,57 +301,67 @@ class PCWithdrawalProgressBar extends StatelessWidget {
     required this.progress,
     required this.label,
     this.diamond = false,
+    this.initialProgress = 0,
+    this.labelAt,
+    this.duration = const Duration(milliseconds: 900),
   });
-  final double progress;
+  final double progress, initialProgress;
   final String label;
+  final String Function(double)? labelAt;
+  final Duration duration;
   final bool diamond;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(8),
-    child: Stack(
-      children: [
-        Positioned.fill(
-          child: ColoredBox(
-            color: diamond ? Colors.white24 : const Color(0xFFE7E7E7),
+  Widget build(BuildContext context) => PCProgressMotion(
+    value: progress,
+    initialValue: initialProgress,
+    duration: duration,
+    builder: (_, animatedProgress, _) => ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ColoredBox(
+              color: diamond ? Colors.white24 : const Color(0xFFE7E7E7),
+            ),
           ),
-        ),
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.all(2),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: progress.clamp(0.0, 1.0),
-                heightFactor: 1,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    gradient: LinearGradient(
-                      colors: diamond
-                          ? const [Color(0xFF2EEFFC), Color(0xFF1162F9)]
-                          : const [Color(0xFFFFDF2D), Color(0xFFFF5E01)],
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: animatedProgress.clamp(0.0, 1.0),
+                  heightFactor: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      gradient: LinearGradient(
+                        colors: diamond
+                            ? const [Color(0xFF2EEFFC), Color(0xFF1162F9)]
+                            : const [Color(0xFFFFDF2D), Color(0xFFFF5E01)],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-        Center(
-          child: PCText(
-            text: label,
-            size: 11,
-            color: diamond ? Colors.white : Colors.black,
-            weight: FontWeight.w700,
+          Center(
+            child: PCText(
+              text: labelAt?.call(animatedProgress) ?? label,
+              size: 11,
+              color: diamond ? Colors.white : Colors.black,
+              weight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
 
-/// 提现队列的展示行，调用方提供脱敏账号与金额，不保存完整账号。
+/// 提现队列的展示行，存放单次展示所需的账号与金额。
 class PCWithdrawalQueueEntry {
   const PCWithdrawalQueueEntry({
     required this.userId,

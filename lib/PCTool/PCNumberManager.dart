@@ -15,6 +15,7 @@ class PCNumberHelpers {
   static const assetPath = 'assets/File/gp177_pig_number.json';
   static const diamondTarget = 20.0;
   static const goldTarget = 10.0;
+  static const _defaultEqRange = [100, 120, 150, 200];
   final Random _random = Random();
   Future<String>? _assetSource;
   PCAPCConfig? _baseModel;
@@ -22,7 +23,16 @@ class PCNumberHelpers {
   PCAPCConfig get model => intModel ?? const PCAPCConfig();
   List<int> get pc_eqRange {
     final values = model.eqRange.where((v) => v > 0).toSet().toList();
-    return values.isEmpty ? const [100, 120, 150, 200] : values;
+    return values.isEmpty ? _defaultEqRange : values;
+  }
+
+  /// 首页弹幕使用打包配置中 100–200 美元的提现档位。
+  List<int> get pc_homeBroadcastAmounts {
+    final amounts = (_baseModel?.eqRange ?? _defaultEqRange)
+        .where((v) => v >= 100 && v <= 200)
+        .toSet()
+        .toList();
+    return amounts.isEmpty ? _defaultEqRange : amounts;
   }
 
   double get pc_firstTarget => pc_eqRange.first.toDouble();

@@ -93,12 +93,17 @@ class _PCWithdrawalGiftRewardDialogState
                   align: TextAlign.center,
                 ),
               ),
-              const Positioned(
+              Positioned(
                 left: 120,
                 top: 206,
                 width: 120,
                 height: 120,
-                child: PCImg(name: 'pc_withdraw_gift_diamond'),
+                child: PCBouncyImage(
+                  imagePath: 'pc_withdraw_gift_diamond',
+                  width: 120,
+                  height: 120,
+                  enableAnimation: !MediaQuery.disableAnimationsOf(context),
+                ),
               ),
               Positioned(
                 left: 80,
@@ -123,7 +128,11 @@ class _PCWithdrawalGiftRewardDialogState
                 height: 16,
                 child: PCWithdrawalProgressBar(
                   key: const ValueKey('pcWithdrawalGiftProgress'),
-                  progress: (afterClaim / target).clamp(0.0, 1.0),
+                  progress: afterClaim / target,
+                  initialProgress: widget.collected / target,
+                  duration: const Duration(milliseconds: 1350),
+                  labelAt: (progress) =>
+                      '${pcProcessAmount(progress * target)}/${pcProcessAmount(target)}',
                   label:
                       '${pcProcessAmount(afterClaim)}/${pcProcessAmount(target)}',
                   diamond: true,

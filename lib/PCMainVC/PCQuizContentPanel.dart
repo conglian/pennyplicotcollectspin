@@ -11,6 +11,9 @@ import '../PCTool/pc_text.dart';
 /// 实际答题板的布局锚点，供新用户引导读取屏幕上的位置和尺寸。
 final GlobalKey pcQuizContentTargetKey = GlobalKey(debugLabel: 'pcQuizContent');
 
+/// 答题页的余额锚点，普通答题及新手引导到账动画共用。
+final GlobalKey pcQuizBalanceTargetKey = GlobalKey(debugLabel: 'pcQuizBalance');
+
 /// Quiz 页面与三题引导共用的题板、题目和选项，按同一设计坐标适配大小屏。
 class PCQuizContentPanel extends StatelessWidget {
   const PCQuizContentPanel({
@@ -71,11 +74,7 @@ class PCQuizContentPanel extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.only(
                       left: 14 * sx,
-                      right:
-                          (hintAnswer == first || selectedAnswer == first
-                              ? 42
-                              : 14) *
-                          sx,
+                      right: (selectedAnswer == first ? 42 : 14) * sx,
                     ),
                     // 对错反馈复用设计中的独立金边按钮，文字和状态图标保持原生绘制。
                     decoration: BoxDecoration(
@@ -126,10 +125,11 @@ class PCQuizContentPanel extends StatelessWidget {
                   ),
                 if (hintAnswer == first && selectedAnswer == null)
                   Positioned(
-                    right: -12 * sx,
+                    // 手势的呼吸范围留在文字区右侧，不改变按钮文字的布局。
+                    right: -30 * sx,
                     bottom: -12 * sy,
                     child: IgnorePointer(
-                      child: PCShouIcon(size: 60 * textScale),
+                      child: PCShouIcon(size: 40 * textScale),
                     ),
                   ),
               ],
